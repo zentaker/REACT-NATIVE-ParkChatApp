@@ -71,7 +71,8 @@ export default function GroupDetailScreen() {
     }
   }
 
-  const isMember = membership !== null;
+  const isMember = membership?.status === "active";
+  const isPending = membership?.status === "pending";
 
   return (
     <SafeAreaView edges={["left", "right"]} style={styles.screen}>
@@ -102,6 +103,17 @@ export default function GroupDetailScreen() {
               >
                 <Text style={styles.secondaryWideText}>{isWorking ? "Procesando..." : "Salir del grupo"}</Text>
               </Pressable>
+            ) : isPending ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isWorking}
+                onPress={handleLeave}
+                style={({ pressed }) => [styles.secondaryWide, (pressed || isWorking) && styles.pressed]}
+              >
+                <Text style={styles.secondaryWideText}>
+                  {isWorking ? "Procesando..." : "Solicitud enviada - cancelar"}
+                </Text>
+              </Pressable>
             ) : (
               <Pressable
                 accessibilityRole="button"
@@ -109,7 +121,13 @@ export default function GroupDetailScreen() {
                 onPress={handleJoin}
                 style={({ pressed }) => [styles.primaryButton, (pressed || isWorking) && styles.pressed]}
               >
-                <Text style={styles.primaryText}>{isWorking ? "Procesando..." : "Unirme al grupo"}</Text>
+                <Text style={styles.primaryText}>
+                  {isWorking
+                    ? "Procesando..."
+                    : group.accessLevel === "approval_required" || group.accessLevel === "invite_only"
+                      ? "Solicitar unirme"
+                      : "Unirme al grupo"}
+                </Text>
               </Pressable>
             )}
 

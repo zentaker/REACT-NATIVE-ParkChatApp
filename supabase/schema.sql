@@ -83,9 +83,29 @@ create table if not exists public.group_members (
   group_id uuid not null references public.groups(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   role text not null default 'member',
+  status text not null default 'active',
   created_at timestamptz not null default now(),
   primary key (group_id, user_id)
 );
+
+alter table public.group_members
+  add column if not exists status text not null default 'active';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'group_members_status_check'
+      and conrelid = 'public.group_members'::regclass
+  ) then
+    alter table public.group_members
+      add constraint group_members_status_check
+      check (status in ('active', 'pending', 'blocked'));
+  end if;
+end $$;
+
+create index if not exists group_members_group_status_idx
+  on public.group_members(group_id, status);
 
 create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),

@@ -1,5 +1,5 @@
-import type { LocalGroup } from "../types";
-import { PLACE_IDS } from "../lib/constants";
+import type { GroupMember, LocalGroup } from "../types";
+import { MOCK_USER_ID, PLACE_IDS } from "../lib/constants";
 
 export const mockGroups: LocalGroup[] = [
   {
@@ -56,5 +56,32 @@ export const mockGroups: LocalGroup[] = [
     memberCount: 28,
     createdAt: "2026-05-05T15:00:00.000Z",
     updatedAt: "2026-05-20T15:00:00.000Z"
+  }
+];
+
+export const mockGroupMembers: GroupMember[] = [
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1:owner",
+    groupId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    userId: MOCK_USER_ID,
+    role: "owner",
+    status: "active",
+    joinedAt: "2026-05-05T15:00:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1:pending-1",
+    groupId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    userId: "00000000-0000-4000-8000-000000000002",
+    role: "member",
+    status: "pending",
+    joinedAt: "2026-05-19T15:00:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1:pending-2",
+    groupId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    userId: "00000000-0000-4000-8000-000000000003",
+    role: "member",
+    status: "pending",
+    joinedAt: "2026-05-21T15:00:00.000Z"
   }
 ];

@@ -113,15 +113,59 @@ create policy "users can join groups as self"
 on public.group_members
 for insert
 to authenticated
-with check (user_id = auth.uid());
+with check (
+  user_id = auth.uid()
+  and role = 'member'
+  and status = (
+    case
+      when exists (
+        select 1 from public.groups g
+        where g.id = group_members.group_id
+          and g.visibility in ('approval_required', 'invite_only')
+      ) then 'pending'
+      else 'active'
+    end
+  )
+);
 
+drop policy if exists "group owners can seed memberships" on public.group_members;
+create policy "group owners can seed memberships"
+on public.group_members
+for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.groups g
+    where g.id = group_members.group_id
+      and g.created_by = auth.uid()
+  )
+);
+
+-- Self-update on group_members is intentionally disallowed: a pending member
+-- must not be able to flip their own status to 'active' or escalate their role.
+-- Members can still join (insert) and leave (delete) themselves; status/role
+-- changes are reserved for the group owner via the policy below.
 drop policy if exists "users can update own group memberships" on public.group_members;
-create policy "users can update own group memberships"
+
+drop policy if exists "group owners can update memberships" on public.group_members;
+create policy "group owners can update memberships"
 on public.group_members
 for update
 to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (
+  exists (
+    select 1 from public.groups g
+    where g.id = group_members.group_id
+      and g.created_by = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.groups g
+    where g.id = group_members.group_id
+      and g.created_by = auth.uid()
+  )
+);
 
 drop policy if exists "users can leave own group memberships" on public.group_members;
 create policy "users can leave own group memberships"
@@ -129,6 +173,19 @@ on public.group_members
 for delete
 to authenticated
 using (user_id = auth.uid());
+
+drop policy if exists "group owners can remove memberships" on public.group_members;
+create policy "group owners can remove memberships"
+on public.group_members
+for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.groups g
+    where g.id = group_members.group_id
+      and g.created_by = auth.uid()
+  )
+);
 
 drop policy if exists "authenticated users can read events" on public.events;
 create policy "authenticated users can read events"
