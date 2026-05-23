@@ -286,12 +286,16 @@ export async function deleteEvent(id: string): Promise<void> {
 }
 
 export async function joinEvent(eventId: string): Promise<EventAttendee> {
+  return setRsvpStatus(eventId, "going");
+}
+
+export async function setRsvpStatus(eventId: string, status: EventAttendeeStatus): Promise<EventAttendee> {
   if (!isSupabaseConfigured || !supabase) {
     return {
       id: `mock-event-attendee-${Date.now()}`,
       eventId,
       userId: MOCK_USER_ID,
-      status: "going",
+      status,
       joinedAt: new Date().toISOString()
     };
   }
@@ -299,20 +303,39 @@ export async function joinEvent(eventId: string): Promise<EventAttendee> {
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    throw new Error("Debes iniciar sesion para confirmar asistencia.");
+    throw new Error("Debes iniciar sesion para responder al evento.");
   }
 
   const { data, error } = await supabase
     .from("event_rsvps")
-    .upsert({ event_id: eventId, user_id: userId, status: "going" }, { onConflict: "event_id,user_id" })
+    .upsert({ event_id: eventId, user_id: userId, status }, { onConflict: "event_id,user_id" })
     .select("*")
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? "No se pudo registrar tu asistencia.");
+    throw new Error(error?.message ?? "No se pudo guardar tu respuesta.");
   }
 
   return mapRsvpRow(data as RsvpRow);
+}
+
+export async function listEventAttendees(eventId: string): Promise<EventAttendee[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("event_rsvps")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) {
+    console.warn("Could not load attendees:", error?.message);
+    return [];
+  }
+
+  return (data as RsvpRow[]).map(mapRsvpRow);
 }
 
 export async function cancelRsvp(eventId: string): Promise<void> {

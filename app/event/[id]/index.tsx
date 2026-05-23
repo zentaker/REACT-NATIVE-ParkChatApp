@@ -9,8 +9,8 @@ import { LoadingState } from "../../../components/LoadingState";
 import { SafetyNotice } from "../../../components/SafetyNotice";
 import { UI_COLORS } from "../../../lib/constants";
 import { getCurrentUserId } from "../../../services/auth";
-import { cancelRsvp, getEventById, getMyRsvp, joinEvent } from "../../../services/events";
-import type { EventAttendee, LocalEvent } from "../../../types";
+import { cancelRsvp, getEventById, getMyRsvp, setRsvpStatus } from "../../../services/events";
+import type { EventAttendee, EventAttendeeStatus, LocalEvent } from "../../../types";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("es-PE", {
@@ -19,6 +19,18 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+const RSVP_OPTIONS: { status: EventAttendeeStatus; label: string }[] = [
+  { status: "going", label: "Asistire" },
+  { status: "interested", label: "Tal vez" },
+  { status: "cancelled", label: "No asisto" }
+];
+
+const RSVP_LABELS: Record<EventAttendeeStatus, string> = {
+  going: "Confirmaste tu asistencia",
+  interested: "Marcaste que tal vez asistas",
+  cancelled: "Indicaste que no asistiras"
+};
+
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const eventId = String(id ?? "");
@@ -26,7 +38,7 @@ export default function EventDetailScreen() {
   const [rsvp, setRsvp] = useState<EventAttendee | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isWorking, setIsWorking] = useState(false);
+  const [workingStatus, setWorkingStatus] = useState<EventAttendeeStatus | "clear" | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,44 +59,46 @@ export default function EventDetailScreen() {
     };
   }, [eventId]);
 
-  function handleJoin() {
-    Alert.alert(
-      "Confirmar asistencia",
-      "Los encuentros presenciales pueden ser publicos. Verifica el lugar, el horario y mantente con tu grupo. Aldea no comparte tu ubicacion exacta.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Asistire",
-          style: "default",
-          onPress: async () => {
-            setIsWorking(true);
-            try {
-              const next = await joinEvent(eventId);
-              setRsvp(next);
-            } catch (error) {
-              Alert.alert("No se pudo registrar", error instanceof Error ? error.message : "Intentalo otra vez.");
-            } finally {
-              setIsWorking(false);
-            }
-          }
-        }
-      ]
-    );
+  async function applyStatus(status: EventAttendeeStatus) {
+    setWorkingStatus(status);
+    try {
+      const next = await setRsvpStatus(eventId, status);
+      setRsvp(next);
+    } catch (error) {
+      Alert.alert("No se pudo guardar", error instanceof Error ? error.message : "Intentalo otra vez.");
+    } finally {
+      setWorkingStatus(null);
+    }
   }
 
-  async function handleCancel() {
-    setIsWorking(true);
+  function handleSelect(status: EventAttendeeStatus) {
+    if (status === "going" && rsvp?.status !== "going") {
+      Alert.alert(
+        "Confirmar asistencia",
+        "Los encuentros presenciales pueden ser publicos. Verifica el lugar, el horario y mantente con tu grupo. Aldea no comparte tu ubicacion exacta.",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Asistire", style: "default", onPress: () => applyStatus("going") }
+        ]
+      );
+      return;
+    }
+    applyStatus(status);
+  }
+
+  async function handleClear() {
+    setWorkingStatus("clear");
     try {
       await cancelRsvp(eventId);
       setRsvp(null);
     } catch (error) {
-      Alert.alert("No se pudo cancelar", error instanceof Error ? error.message : "Intentalo otra vez.");
+      Alert.alert("No se pudo quitar", error instanceof Error ? error.message : "Intentalo otra vez.");
     } finally {
-      setIsWorking(false);
+      setWorkingStatus(null);
     }
   }
 
-  const isAttending = rsvp !== null;
+  const isBusy = workingStatus !== null;
 
   return (
     <SafeAreaView edges={["left", "right"]} style={styles.screen}>
@@ -109,25 +123,48 @@ export default function EventDetailScreen() {
               {event.description ? <Text style={styles.detailCopy}>{event.description}</Text> : null}
             </View>
 
-            {isAttending ? (
-              <Pressable
-                accessibilityRole="button"
-                disabled={isWorking}
-                onPress={handleCancel}
-                style={({ pressed }) => [styles.secondaryWide, (pressed || isWorking) && styles.pressed]}
-              >
-                <Text style={styles.secondaryWideText}>{isWorking ? "Procesando..." : "Cancelar asistencia"}</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                disabled={isWorking}
-                onPress={handleJoin}
-                style={({ pressed }) => [styles.primaryButton, (pressed || isWorking) && styles.pressed]}
-              >
-                <Text style={styles.primaryText}>{isWorking ? "Procesando..." : "Asistir"}</Text>
-              </Pressable>
-            )}
+            <View style={styles.rsvpCard}>
+              <Text style={styles.sectionTitle}>Tu respuesta</Text>
+              <Text style={styles.rsvpStatusText}>
+                {rsvp ? RSVP_LABELS[rsvp.status] : "Aun no respondes a este evento."}
+              </Text>
+              <View style={styles.rsvpRow}>
+                {RSVP_OPTIONS.map((option) => {
+                  const isActive = rsvp?.status === option.status;
+                  const isThisLoading = workingStatus === option.status;
+                  return (
+                    <Pressable
+                      key={option.status}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isActive, disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => handleSelect(option.status)}
+                      style={({ pressed }) => [
+                        styles.rsvpButton,
+                        isActive && styles.rsvpButtonActive,
+                        (pressed || isThisLoading) && styles.pressed
+                      ]}
+                    >
+                      <Text style={[styles.rsvpButtonText, isActive && styles.rsvpButtonTextActive]}>
+                        {isThisLoading ? "..." : option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {rsvp ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isBusy}
+                  onPress={handleClear}
+                  style={({ pressed }) => [styles.clearLink, (pressed || workingStatus === "clear") && styles.pressed]}
+                >
+                  <Text style={styles.clearLinkText}>
+                    {workingStatus === "clear" ? "Quitando..." : "Quitar mi respuesta"}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
 
             <View style={styles.actionGrid}>
               <Pressable
@@ -175,26 +212,35 @@ const styles = StyleSheet.create({
   sectionTitle: { color: UI_COLORS.text, fontSize: 17, fontWeight: "900" },
   detailText: { color: UI_COLORS.primary, fontSize: 14, fontWeight: "900", lineHeight: 20 },
   detailCopy: { color: UI_COLORS.textMuted, fontSize: 14, lineHeight: 20 },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: UI_COLORS.primary,
-    borderRadius: 8,
-    justifyContent: "center",
-    minHeight: 52,
-    paddingHorizontal: 16
-  },
-  primaryText: { color: "#ffffff", fontSize: 15, fontWeight: "900" },
-  secondaryWide: {
-    alignItems: "center",
+  rsvpCard: {
     backgroundColor: UI_COLORS.surface,
     borderColor: UI_COLORS.border,
     borderRadius: 8,
     borderWidth: 1,
+    gap: 12,
+    padding: 16
+  },
+  rsvpStatusText: { color: UI_COLORS.textMuted, fontSize: 13, lineHeight: 18 },
+  rsvpRow: { flexDirection: "row", gap: 8 },
+  rsvpButton: {
+    alignItems: "center",
+    backgroundColor: UI_COLORS.background,
+    borderColor: UI_COLORS.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
     justifyContent: "center",
     minHeight: 48,
-    paddingHorizontal: 16
+    paddingHorizontal: 8
   },
-  secondaryWideText: { color: UI_COLORS.primary, fontSize: 14, fontWeight: "900" },
+  rsvpButtonActive: {
+    backgroundColor: UI_COLORS.primary,
+    borderColor: UI_COLORS.primary
+  },
+  rsvpButtonText: { color: UI_COLORS.primary, fontSize: 13, fontWeight: "900", textAlign: "center" },
+  rsvpButtonTextActive: { color: "#ffffff" },
+  clearLink: { alignItems: "center", paddingVertical: 4 },
+  clearLinkText: { color: UI_COLORS.textMuted, fontSize: 13, fontWeight: "700" },
   pressed: { opacity: 0.78 },
   actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   secondaryButton: {
