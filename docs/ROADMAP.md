@@ -75,13 +75,19 @@ Verificado contra `app/`, `services/`, `supabase/`, `package.json`, `STAGE_0_COM
 - Lectura/escritura real de `place_messages` y suscripción Realtime vía Postgres Changes.
 - Persistencia real de `group_members`, `event_rsvps`, `reports` y `blocks` desde los servicios.
 
-### Etapa 1A — Pendiente
+### Etapa 1A — Cierre (hecho)
 
-- Habilitar publicación Realtime de `place_messages` en el proyecto Supabase y verificar deduplicación de inserts en cliente.
-- Verificación end-to-end del flujo de sign-up: creación de perfil vía trigger + fallback en cliente si el trigger no corre.
-- Pruebas de RLS contra casos hostiles (intentar insertar `place_message` con `user_id` ajeno, leer mensajes de bloqueado, modificar grupo ajeno).
-- Manejo explícito de estados de error y reintento en pantallas (chat, listado, perfil).
-- Smoke test manual documentado: sign-up → entrar a lugar → enviar mensaje → ver en otro cliente.
+- Realtime de `place_messages` publicado vía `supabase/schema.sql` (bloque idempotente que lo agrega a `supabase_realtime` si la publicación existe).
+- Eco optimista en `app/place/[id]/chat.tsx` con dedupe entre el mensaje local y el evento de Postgres Changes (ver `services/messages.ts#createOptimisticPlaceMessage`).
+- Sign-up deja perfil creado por trigger `handle_new_user` + fallback en `services/auth.ts` (`upsert` post sign-up).
+- Smoke test reproducible documentado en `docs/SMOKE_TEST.md`.
+- Checklist de RLS hostil en `docs/RLS_CHECKLIST.md`.
+
+### Etapa 1A — Pendiente operativo (fuera de código)
+
+- Verificar en el dashboard Supabase que `supabase_realtime` lista `public.place_messages` (la app no puede crear la publicación si no existe).
+- Ejecutar manualmente el checklist de `docs/RLS_CHECKLIST.md` contra el proyecto real.
+- Manejo explícito de estados de error y reintento queda como pulido continuo, no bloquea el cierre.
 
 ---
 

@@ -134,3 +134,20 @@ create index if not exists events_place_starts_idx on public.events(place_id, st
 create index if not exists events_created_by_idx on public.events(created_by);
 create index if not exists reports_reporter_idx on public.reports(reporter_id);
 create index if not exists blocks_blocker_idx on public.blocks(blocker_id);
+
+-- Realtime: publish place_messages so Postgres Changes works end-to-end.
+-- Idempotent: only add the table to supabase_realtime if it isn't already published.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (
+      select 1
+      from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'place_messages'
+    ) then
+      execute 'alter publication supabase_realtime add table public.place_messages';
+    end if;
+  end if;
+end $$;

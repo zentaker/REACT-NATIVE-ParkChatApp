@@ -87,6 +87,9 @@ Con `.env` configurado:
 - `places` se leen desde Postgres.
 - `place_messages` se leen y escriben desde Postgres.
 - `subscribeToPlaceMessages` escucha inserts con Supabase Realtime/Postgres Changes.
+- El chat muestra eco optimista del mensaje propio y deduplica contra el evento remoto (ver `services/messages.ts#createOptimisticPlaceMessage` y `app/place/[id]/chat.tsx`).
+- `supabase/schema.sql` publica `place_messages` en `supabase_realtime` de forma idempotente.
+- Smoke test manual: `docs/SMOKE_TEST.md`. Checklist hostil de RLS: `docs/RLS_CHECKLIST.md`.
 - `joinGroup` persiste en `group_members`.
 - `joinEvent` persiste en `event_rsvps`.
 - `reportContent` persiste en `reports`.

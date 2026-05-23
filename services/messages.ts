@@ -72,6 +72,25 @@ export async function getPlaceMessages(placeId: string): Promise<PlaceMessage[]>
   return (data as PlaceMessageRow[]).map(mapMessageRow);
 }
 
+export function createOptimisticPlaceMessage(
+  placeId: string,
+  body: string,
+  profile: Profile | null
+): PlaceMessage {
+  const trimmedBody = body.trim();
+  const tempId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  return {
+    id: tempId,
+    placeId,
+    userId: profile?.id ?? null,
+    body: trimmedBody,
+    moderationStatus: "visible",
+    createdAt: new Date().toISOString(),
+    profile
+  };
+}
+
 export async function sendPlaceMessage(placeId: string, body: string): Promise<PlaceMessage> {
   const trimmedBody = body.trim();
 
