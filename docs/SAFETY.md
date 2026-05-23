@@ -58,13 +58,27 @@ Se muestra el componente `SafetyNotice` en los puntos donde el riesgo es mayor:
 - **Perfil ajeno**: explica que reportar no expone identidad y que bloquear es reversible.
 - **Pantalla Mis bloqueos**: explica como funciona el filtro.
 
-## 6. Limites tecnicos actuales
+## 6. Rate limit en chat de lugar
 
-- Rate limit de envio de mensajes esta pendiente (cliente + verificacion en servidor). Listado como riesgo en ROADMAP Etapa 1C.
+Para evitar inundaciones y mensajes repetidos en el chat de lugar aplicamos un limite en dos capas (defensa en profundidad):
+
+- **Cliente** (`services/messages.ts` + `components/MessageInput.tsx`):
+  - Maximo 5 mensajes por usuario por ventana movil de 60 segundos.
+  - Se rechaza si el cuerpo es identico (normalizado: trim, minusculas, espacios colapsados) al ultimo mensaje enviado.
+  - Cuando se supera el limite, el input muestra un cooldown con el tiempo restante y un mensaje claro al usuario.
+- **Servidor** (`supabase/triggers.sql`):
+  - Trigger `BEFORE INSERT` sobre `place_messages` con las mismas reglas, para que no se pueda eludir desde clientes alternos.
+  - Errores se levantan con prefijo `rate_limit_exceeded:` o `duplicate_message:` para que el cliente los traduzca a un aviso amigable.
+  - Indice `place_messages_user_created_idx` para que la verificacion por ventana sea barata.
+
+Si se necesita ajustar el limite, los valores viven en `MESSAGE_RATE_LIMIT_MAX` / `MESSAGE_RATE_LIMIT_WINDOW_MS` (cliente) y en la funcion `enforce_place_message_rate_limit` (servidor). Mantener ambos sincronizados.
+
+## 7. Limites tecnicos actuales
+
 - No hay todavia bandeja de moderacion en la app. La revision se hace via dashboard de Supabase.
 - No hay notificaciones automaticas al reportante. El estado del reporte solo es visible al equipo de moderacion.
 
-## 7. Verificacion manual recomendada
+## 8. Verificacion manual recomendada
 
 1. Iniciar sesion con dos cuentas distintas (A y B).
 2. Desde A, enviar un mensaje en un lugar y reportar un mensaje de B con motivo `spam` + detalle.
@@ -72,10 +86,12 @@ Se muestra el componente `SafetyNotice` en los puntos donde el riesgo es mayor:
 4. Desde A, bloquear a B desde el chat y desde el perfil. Confirmar que los mensajes de B desaparecen al instante y aparece el contador de mensajes ocultos.
 5. Ir a Perfil > Mis bloqueos, confirmar que B aparece y desbloquear. Los mensajes vuelven a verse.
 6. Intentar bloquearse a si mismo: debe fallar con error explicito.
+7. Desde A, enviar 6 mensajes seguidos en menos de un minuto: el sexto debe rechazarse con el aviso de rate limit y el input mostrar cooldown.
+8. Desde A, enviar dos veces el mismo texto consecutivo: el segundo debe rechazarse con el aviso de duplicado, tanto en cliente como ante un cliente que llame al insert directo.
 
-## 8. Cambios a futuro (fuera de Etapa 1C)
+## 9. Cambios a futuro (fuera de Etapa 1C)
 
 - Bandeja de reportes propios y estado de revision.
 - Mute temporal por lugar gestionado por moderadores locales.
 - Filtros automaticos basicos (palabras, dominios) antes de moderacion asistida.
-- Rate limit y deteccion de spam coordinada con la tabla `place_messages`.
+- Deteccion de spam coordinada (no solo conteo y repeticion exacta) sobre `place_messages`.

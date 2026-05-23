@@ -15,6 +15,7 @@ import { blockUser, reportContent, type ReportReason } from "../../../services/m
 import {
   createOptimisticPlaceMessage,
   getPlaceMessages,
+  MessageRateLimitError,
   sendPlaceMessage,
   subscribeToPlaceMessages
 } from "../../../services/messages";
@@ -92,6 +93,10 @@ export default function PlaceChatScreen() {
         setMessages((current) => replaceOptimistic(current, optimistic.id, message));
       } catch (error) {
         setMessages((current) => current.filter((item) => item.id !== optimistic.id));
+        if (error instanceof MessageRateLimitError) {
+          // Let MessageInput render the inline cooldown / duplicate hint.
+          throw error;
+        }
         Alert.alert("No se pudo enviar", error instanceof Error ? error.message : "Intentalo otra vez.");
       }
     },

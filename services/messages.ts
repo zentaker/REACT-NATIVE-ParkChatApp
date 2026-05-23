@@ -5,6 +5,77 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { getCurrentUserId } from "./auth";
 import type { ModerationStatus, PlaceMessage, Profile, SafetyMode } from "../types";
 
+export const MESSAGE_RATE_LIMIT_MAX = 5;
+export const MESSAGE_RATE_LIMIT_WINDOW_MS = 60_000;
+
+const recentSendTimestamps: number[] = [];
+let lastSentBodyNormalized = "";
+
+export type MessageRateLimitReason = "frequency" | "duplicate";
+
+export class MessageRateLimitError extends Error {
+  reason: MessageRateLimitReason;
+  retryAfterMs: number;
+
+  constructor(reason: MessageRateLimitReason, retryAfterMs: number) {
+    super(
+      reason === "duplicate"
+        ? "No repitas el mismo mensaje seguido."
+        : `Estas enviando muy rapido. Espera ${Math.max(1, Math.ceil(retryAfterMs / 1000))}s antes del siguiente mensaje.`
+    );
+    this.name = "MessageRateLimitError";
+    this.reason = reason;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+function pruneRecentTimestamps(now: number) {
+  while (recentSendTimestamps.length > 0 && now - recentSendTimestamps[0] > MESSAGE_RATE_LIMIT_WINDOW_MS) {
+    recentSendTimestamps.shift();
+  }
+}
+
+export type MessageRateLimitStatus = {
+  remaining: number;
+  retryAfterMs: number;
+  max: number;
+  windowMs: number;
+};
+
+export function getMessageRateLimitStatus(): MessageRateLimitStatus {
+  const now = Date.now();
+  pruneRecentTimestamps(now);
+  const used = recentSendTimestamps.length;
+  const remaining = Math.max(0, MESSAGE_RATE_LIMIT_MAX - used);
+  const retryAfterMs = remaining === 0 && used > 0 ? MESSAGE_RATE_LIMIT_WINDOW_MS - (now - recentSendTimestamps[0]) : 0;
+  return { remaining, retryAfterMs, max: MESSAGE_RATE_LIMIT_MAX, windowMs: MESSAGE_RATE_LIMIT_WINDOW_MS };
+}
+
+function normalizeBody(body: string): string {
+  return body.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function assertCanSendMessage(trimmedBody: string) {
+  const status = getMessageRateLimitStatus();
+  if (status.retryAfterMs > 0) {
+    throw new MessageRateLimitError("frequency", status.retryAfterMs);
+  }
+  const normalized = normalizeBody(trimmedBody);
+  if (normalized.length > 0 && normalized === lastSentBodyNormalized) {
+    throw new MessageRateLimitError("duplicate", 0);
+  }
+}
+
+function recordSentMessage(trimmedBody: string) {
+  recentSendTimestamps.push(Date.now());
+  lastSentBodyNormalized = normalizeBody(trimmedBody);
+}
+
+export function __resetMessageRateLimitForTests() {
+  recentSendTimestamps.length = 0;
+  lastSentBodyNormalized = "";
+}
+
 type ProfileRow = {
   id: string;
   username?: string | null;
@@ -98,8 +169,12 @@ export async function sendPlaceMessage(placeId: string, body: string): Promise<P
     throw new Error("Message body cannot be empty.");
   }
 
+  assertCanSendMessage(trimmedBody);
+
   if (!isSupabaseConfigured || !supabase) {
     const profile = mockProfiles.find((item) => item.id === MOCK_USER_ID) ?? mockProfiles[0];
+
+    recordSentMessage(trimmedBody);
 
     return {
       id: `mock-message-${Date.now()}`,
@@ -125,8 +200,17 @@ export async function sendPlaceMessage(placeId: string, body: string): Promise<P
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? "Could not send message.");
+    const rawMessage = error?.message ?? "";
+    if (rawMessage.includes("rate_limit_exceeded")) {
+      throw new MessageRateLimitError("frequency", MESSAGE_RATE_LIMIT_WINDOW_MS);
+    }
+    if (rawMessage.includes("duplicate_message")) {
+      throw new MessageRateLimitError("duplicate", 0);
+    }
+    throw new Error(rawMessage || "Could not send message.");
   }
+
+  recordSentMessage(trimmedBody);
 
   return mapMessageRow(data as PlaceMessageRow);
 }
