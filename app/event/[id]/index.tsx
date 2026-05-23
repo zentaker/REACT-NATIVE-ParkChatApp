@@ -8,8 +8,9 @@ import { EventCard } from "../../../components/EventCard";
 import { LoadingState } from "../../../components/LoadingState";
 import { SafetyNotice } from "../../../components/SafetyNotice";
 import { UI_COLORS } from "../../../lib/constants";
-import { getEventById, joinEvent } from "../../../services/events";
-import type { LocalEvent } from "../../../types";
+import { getCurrentUserId } from "../../../services/auth";
+import { cancelRsvp, getEventById, getMyRsvp, joinEvent } from "../../../services/events";
+import type { EventAttendee, LocalEvent } from "../../../types";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("es-PE", {
@@ -22,15 +23,20 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const eventId = String(id ?? "");
   const [event, setEvent] = useState<LocalEvent | null>(null);
+  const [rsvp, setRsvp] = useState<EventAttendee | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isJoining, setIsJoining] = useState(false);
+  const [isWorking, setIsWorking] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
-    getEventById(eventId)
-      .then((nextEvent) => {
-        if (isMounted) setEvent(nextEvent);
+    Promise.all([getEventById(eventId), getMyRsvp(eventId), getCurrentUserId().catch(() => null)])
+      .then(([nextEvent, nextRsvp, userId]) => {
+        if (!isMounted) return;
+        setEvent(nextEvent);
+        setRsvp(nextRsvp);
+        setIsOwner(Boolean(nextEvent && userId && nextEvent.createdBy === userId));
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -51,20 +57,34 @@ export default function EventDetailScreen() {
           text: "Asistire",
           style: "default",
           onPress: async () => {
-            setIsJoining(true);
+            setIsWorking(true);
             try {
-              await joinEvent(eventId);
-              Alert.alert("Asistencia registrada", "Tu RSVP se guardo o quedo simulado en modo mock.");
+              const next = await joinEvent(eventId);
+              setRsvp(next);
             } catch (error) {
               Alert.alert("No se pudo registrar", error instanceof Error ? error.message : "Intentalo otra vez.");
             } finally {
-              setIsJoining(false);
+              setIsWorking(false);
             }
           }
         }
       ]
     );
   }
+
+  async function handleCancel() {
+    setIsWorking(true);
+    try {
+      await cancelRsvp(eventId);
+      setRsvp(null);
+    } catch (error) {
+      Alert.alert("No se pudo cancelar", error instanceof Error ? error.message : "Intentalo otra vez.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  const isAttending = rsvp !== null;
 
   return (
     <SafeAreaView edges={["left", "right"]} style={styles.screen}>
@@ -85,17 +105,29 @@ export default function EventDetailScreen() {
             <View style={styles.detailCard}>
               <Text style={styles.sectionTitle}>Detalle</Text>
               <Text style={styles.detailText}>Inicio: {formatDate(event.startsAt)}</Text>
-              <Text style={styles.detailCopy}>{event.description}</Text>
+              {event.endsAt ? <Text style={styles.detailText}>Fin: {formatDate(event.endsAt)}</Text> : null}
+              {event.description ? <Text style={styles.detailCopy}>{event.description}</Text> : null}
             </View>
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={isJoining}
-              onPress={handleJoin}
-              style={({ pressed }) => [styles.primaryButton, (pressed || isJoining) && styles.pressed]}
-            >
-              <Text style={styles.primaryText}>{isJoining ? "Procesando..." : "Asistir"}</Text>
-            </Pressable>
+            {isAttending ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isWorking}
+                onPress={handleCancel}
+                style={({ pressed }) => [styles.secondaryWide, (pressed || isWorking) && styles.pressed]}
+              >
+                <Text style={styles.secondaryWideText}>{isWorking ? "Procesando..." : "Cancelar asistencia"}</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isWorking}
+                onPress={handleJoin}
+                style={({ pressed }) => [styles.primaryButton, (pressed || isWorking) && styles.pressed]}
+              >
+                <Text style={styles.primaryText}>{isWorking ? "Procesando..." : "Asistir"}</Text>
+              </Pressable>
+            )}
 
             <View style={styles.actionGrid}>
               <Pressable
@@ -112,6 +144,15 @@ export default function EventDetailScreen() {
               >
                 <Text style={styles.secondaryText}>Chat</Text>
               </Pressable>
+              {isOwner ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push({ pathname: "/event/[id]/edit" as never, params: { id: event.id } as never })}
+                  style={styles.secondaryButton}
+                >
+                  <Text style={styles.secondaryText}>Editar</Text>
+                </Pressable>
+              ) : null}
             </View>
           </>
         ) : null}
@@ -121,15 +162,8 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: UI_COLORS.background,
-    flex: 1
-  },
-  content: {
-    gap: 18,
-    padding: 18,
-    paddingBottom: 32
-  },
+  screen: { backgroundColor: UI_COLORS.background, flex: 1 },
+  content: { gap: 18, padding: 18, paddingBottom: 32 },
   detailCard: {
     backgroundColor: UI_COLORS.surface,
     borderColor: UI_COLORS.border,
@@ -138,22 +172,9 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 16
   },
-  sectionTitle: {
-    color: UI_COLORS.text,
-    fontSize: 17,
-    fontWeight: "900"
-  },
-  detailText: {
-    color: UI_COLORS.primary,
-    fontSize: 14,
-    fontWeight: "900",
-    lineHeight: 20
-  },
-  detailCopy: {
-    color: UI_COLORS.textMuted,
-    fontSize: 14,
-    lineHeight: 20
-  },
+  sectionTitle: { color: UI_COLORS.text, fontSize: 17, fontWeight: "900" },
+  detailText: { color: UI_COLORS.primary, fontSize: 14, fontWeight: "900", lineHeight: 20 },
+  detailCopy: { color: UI_COLORS.textMuted, fontSize: 14, lineHeight: 20 },
   primaryButton: {
     alignItems: "center",
     backgroundColor: UI_COLORS.primary,
@@ -162,18 +183,20 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 16
   },
-  primaryText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900"
+  primaryText: { color: "#ffffff", fontSize: 15, fontWeight: "900" },
+  secondaryWide: {
+    alignItems: "center",
+    backgroundColor: UI_COLORS.surface,
+    borderColor: UI_COLORS.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 16
   },
-  pressed: {
-    opacity: 0.78
-  },
-  actionGrid: {
-    flexDirection: "row",
-    gap: 10
-  },
+  secondaryWideText: { color: UI_COLORS.primary, fontSize: 14, fontWeight: "900" },
+  pressed: { opacity: 0.78 },
+  actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   secondaryButton: {
     alignItems: "center",
     backgroundColor: UI_COLORS.surface,
@@ -182,12 +205,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     minHeight: 48,
+    minWidth: 100,
     justifyContent: "center",
     paddingHorizontal: 8
   },
-  secondaryText: {
-    color: UI_COLORS.primary,
-    fontSize: 13,
-    fontWeight: "900"
-  }
+  secondaryText: { color: UI_COLORS.primary, fontSize: 13, fontWeight: "900" }
 });

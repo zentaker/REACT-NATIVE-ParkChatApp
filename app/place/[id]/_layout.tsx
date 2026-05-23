@@ -28,6 +28,8 @@ export default function PlaceLayout() {
       <Stack.Screen name="chat" options={{ title: "Chat del lugar" }} />
       <Stack.Screen name="groups" options={{ title: "Grupos del lugar" }} />
       <Stack.Screen name="events" options={{ title: "Eventos del lugar" }} />
+      <Stack.Screen name="new-group" options={{ title: "Crear grupo", presentation: "modal" }} />
+      <Stack.Screen name="new-event" options={{ title: "Crear evento", presentation: "modal" }} />
     </Stack>
   );
 }

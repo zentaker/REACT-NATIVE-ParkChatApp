@@ -28,6 +28,7 @@ export default function GroupLayout() {
       <Stack.Screen name="chat" options={{ title: "Chat de grupo" }} />
       <Stack.Screen name="members" options={{ title: "Miembros" }} />
       <Stack.Screen name="settings" options={{ title: "Ajustes del grupo" }} />
+      <Stack.Screen name="new-event" options={{ title: "Crear evento", presentation: "modal" }} />
     </Stack>
   );
 }

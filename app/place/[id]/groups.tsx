@@ -43,7 +43,11 @@ export default function PlaceGroupsScreen() {
 
         <SafetyNotice message="Los grupos pueden ser publicos, locales, por aprobacion o privados segun el nivel de cuidado necesario." />
 
-        <Pressable accessibilityRole="button" style={styles.createButton}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: "/place/[id]/new-group" as never, params: { id: placeId } as never })}
+          style={({ pressed }) => [styles.createButton, pressed && { opacity: 0.78 }]}
+        >
           <Text style={styles.createText}>Crear grupo</Text>
         </Pressable>
 

@@ -123,9 +123,11 @@ Cada etapa tiene objetivo, alcance, entregables, criterios de aceptación, depen
 
 ---
 
-### Etapa 1B — Crear Desde la App
+### Etapa 1B — Crear Desde la App (Hecho)
 
 **Objetivo**: habilitar que un usuario real pase de consumir a producir contenido local: crear grupos y eventos desde la UI, manejar membresías y RSVP.
+
+**Estado**: implementado en services `groups.ts` / `events.ts` (create/update/delete/leave/cancelRsvp/getMy*), pantallas `app/place/[id]/new-group.tsx`, `app/place/[id]/new-event.tsx`, `app/group/[id]/new-event.tsx`, `app/group/[id]/settings.tsx` (edit + delete), `app/event/[id]/edit.tsx`, `app/(app)/my-groups.tsx`, `app/(app)/my-events.tsx`. Detalle de grupo y evento muestran join/leave y RSVP/cancelar con estado real.
 
 **Alcance**: formularios y flujos mínimos de creación/edición sobre las tablas ya existentes. Sin chat de grupo todavía.
 

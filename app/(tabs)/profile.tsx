@@ -81,6 +81,20 @@ export default function ProfileScreen() {
         <SafetyNotice message="Puedes preparar bloqueos y reportes sin exponer tu ubicacion exacta en la interfaz." />
 
         <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/my-groups" as never)}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryText}>Mis grupos</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/my-events" as never)}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryText}>Mis eventos</Text>
+          </Pressable>
           <Pressable accessibilityRole="button" style={styles.secondaryButton}>
             <Text style={styles.secondaryText}>Editar perfil</Text>
           </Pressable>

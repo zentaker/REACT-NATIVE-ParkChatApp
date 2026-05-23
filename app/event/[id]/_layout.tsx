@@ -27,6 +27,7 @@ export default function EventLayout() {
       <Stack.Screen name="index" options={{ title: "Evento" }} />
       <Stack.Screen name="attendees" options={{ title: "Asistentes" }} />
       <Stack.Screen name="chat" options={{ title: "Chat de evento" }} />
+      <Stack.Screen name="edit" options={{ title: "Editar evento", presentation: "modal" }} />
     </Stack>
   );
 }

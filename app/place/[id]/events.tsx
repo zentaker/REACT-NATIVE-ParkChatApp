@@ -43,7 +43,11 @@ export default function PlaceEventsScreen() {
 
         <SafetyNotice message="Prioriza lugares publicos, reglas claras y anfitriones identificables para los eventos presenciales." />
 
-        <Pressable accessibilityRole="button" style={styles.createButton}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: "/place/[id]/new-event" as never, params: { id: placeId } as never })}
+          style={({ pressed }) => [styles.createButton, pressed && { opacity: 0.78 }]}
+        >
           <Text style={styles.createText}>Crear evento</Text>
         </Pressable>
 
