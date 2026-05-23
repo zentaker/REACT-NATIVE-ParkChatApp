@@ -1,0 +1,77 @@
+import type { Place } from "../types";
+import { PLACE_IDS } from "../lib/constants";
+
+export const mockPlaces: Place[] = [
+  {
+    id: PLACE_IDS.parqueKennedy,
+    name: "Parque Kennedy",
+    description: "Un punto vivo de Miraflores para conversaciones, ferias, mascotas y encuentros espontaneos.",
+    type: "park",
+    latitude: -12.1211,
+    longitude: -77.0297,
+    radiusMeters: 180,
+    city: "Lima",
+    country: "Peru",
+    visibility: "public",
+    createdAt: "2026-05-01T15:00:00.000Z",
+    updatedAt: "2026-05-21T15:00:00.000Z",
+    activeUsersCount: 32,
+    activeConversationsCount: 5,
+    groupsCount: 3,
+    eventsCount: 2
+  },
+  {
+    id: PLACE_IDS.barrancoPlaza,
+    name: "Barranco Plaza",
+    description: "Plaza barranquina con energia cultural, caminatas, musica y comunidad de barrio.",
+    type: "plaza",
+    latitude: -12.1491,
+    longitude: -77.0216,
+    radiusMeters: 160,
+    city: "Lima",
+    country: "Peru",
+    visibility: "public",
+    createdAt: "2026-05-01T15:00:00.000Z",
+    updatedAt: "2026-05-21T15:00:00.000Z",
+    activeUsersCount: 18,
+    activeConversationsCount: 3,
+    groupsCount: 2,
+    eventsCount: 1
+  },
+  {
+    id: PLACE_IDS.cafeCultural,
+    name: "Cafe Cultural Miraflores",
+    description: "Cafe para freelancers, idiomas, lectura compartida y microeventos culturales.",
+    type: "cafe",
+    latitude: -12.1228,
+    longitude: -77.0284,
+    radiusMeters: 80,
+    city: "Lima",
+    country: "Peru",
+    visibility: "public",
+    createdAt: "2026-05-01T15:00:00.000Z",
+    updatedAt: "2026-05-21T15:00:00.000Z",
+    activeUsersCount: 11,
+    activeConversationsCount: 2,
+    groupsCount: 1,
+    eventsCount: 1
+  },
+  {
+    id: PLACE_IDS.coworkingCreativo,
+    name: "Coworking Creativo",
+    description: "Espacio de trabajo con comunidad de nómadas digitales, diseno y tecnologia local.",
+    type: "coworking",
+    latitude: -12.1197,
+    longitude: -77.0251,
+    radiusMeters: 100,
+    city: "Lima",
+    country: "Peru",
+    visibility: "public",
+    createdAt: "2026-05-01T15:00:00.000Z",
+    updatedAt: "2026-05-21T15:00:00.000Z",
+    activeUsersCount: 14,
+    activeConversationsCount: 4,
+    groupsCount: 1,
+    eventsCount: 1
+  }
+];

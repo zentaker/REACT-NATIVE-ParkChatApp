@@ -1,0 +1,10 @@
+entrypoint = "app.json"
+modules = ["nodejs-20"]
+run = "npm run replit:start"
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 8081
+externalPort = 80
