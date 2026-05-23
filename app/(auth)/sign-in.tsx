@@ -4,6 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { APP_NAME, UI_COLORS } from "../../lib/constants";
+import { isSupabaseConfigured } from "../../lib/supabase";
 import { signInWithEmail } from "../../services/auth";
 
 export default function SignInScreen() {
@@ -61,7 +62,9 @@ export default function SignInScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.helper}>Sin credenciales de Supabase, Aldea usa datos mock para desarrollo.</Text>
+        {!isSupabaseConfigured && (
+          <Text style={styles.helper}>Sin credenciales de Supabase, Aldea usa datos mock para desarrollo.</Text>
+        )}
 
         <Link href="/sign-up" style={styles.link}>
           Crear cuenta

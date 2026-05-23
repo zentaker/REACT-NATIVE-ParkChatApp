@@ -9,58 +9,51 @@ Snapshot del workspace al 23-may-2026.
 - **Workspace:** Replit
 
 ## Workflow
-- `Start application` -> `npx expo start --web --port 5000`
-- Estado: **running**.
+- `Start application` → `bash scripts/start-web.sh` (Metro puerto 5000 + proxy 8081)
+- Estado: **running**
+- Preview URL: `https://50b81fc1-2e35-482d-9b2f-19cab751220c-00-1cjkyqq5duxei.worf.replit.dev/`
 
 ## Validaciones
 | Check | Estado |
 |---|---|
-| `npm run doctor:node` | WARN — `EXPO_PUBLIC_SUPABASE_URL` contiene un JWT en lugar de la URL |
-| `npm run typecheck` (`tsc --noEmit`) | OK, 0 errores |
-| Preview web | Renderea correctamente (mocks) |
-| Post-merge hook (`scripts/post-merge.sh`) | OK (~700-900 ms) |
+| `npm run doctor:node` | ✅ OK — URL válida, anon key presente, backend real activo |
+| `npm run typecheck` | ✅ OK — 0 errores |
+| Preview web | ✅ Login screen real de Supabase |
+| App usa mocks | ✅ No — Supabase real conectado |
 
-## Backend
-- **Supabase real:** NO conectado.
-- **Modo activo:** mocks (fallback automatico del cliente cuando la URL no es
-  parseable o no es `*.supabase.co`).
-- **Anon key:** valida (JWT presente).
-- **Project URL:** invalida (sigue con un JWT pegado en el campo URL).
+## Backend Supabase
+- **URL:** `apcdhwqfntujcwsbtfbu.supabase.co` ✅
+- **Anon key:** válida ✅
+- **Supabase real:** conectado ✅
+- **Mocks:** desactivados ✅
+- **Tablas (9/9):** existen ✅
+- **Seed:** ❌ NO aplicado — places vacíos
+- **service_role:** ausente ✅
 
 ## Etapas
-| Etapa | Estado codigo | QA real |
+| Etapa | Estado código | QA real |
 |---|---|---|
-| Etapa 0 - base UI + nav | Hecho | N/A |
-| Etapa 1A - auth + places + chat realtime | Hecho | Bloqueado por URL Supabase |
-| Etapa 1B - grupos y eventos en UI | Hecho | Bloqueado por URL Supabase |
-| Etapa 1C - reportes + bloqueos + rate limit | Hecho | Bloqueado por URL Supabase |
-| Etapa 2 / 3 / Post-MVP | No iniciado | - |
+| Etapa 0 — base UI + nav | ✅ Hecho | N/A |
+| Etapa 1A — auth + places + chat realtime | ✅ Hecho | ⏸ Parcial — tablas OK, seed pendiente |
+| Etapa 1B — grupos y eventos | ✅ Hecho | ⏸ Pendiente — depende de auth + seed |
+| Etapa 1C — reportes + bloqueos + rate limit | ✅ Hecho | ⏸ Pendiente — depende de auth |
+| Etapa 2 / 3 / Post-MVP | No iniciado | — |
 
-## Tasks abiertas
-Ver `docs/TASKS_IN_PROGRESS_QA_PLAN.md`. Resumen:
-- #6 implemented, #7 merging, #8 in progress.
-- #5 y #9 ya mergeadas.
+## Bloqueadores activos
+1. **Seed vacío:** `supabase/seed.sql` no fue aplicado → tabla `places` tiene 0 rows.
+   - Acción: SQL Editor → pegar y ejecutar `supabase/seed.sql`
 
-## Bloqueador unico
-`EXPO_PUBLIC_SUPABASE_URL` sigue siendo un JWT (`eyJhbGci...`, len=208) en
-Replit Secrets. El valor correcto que confirmaste es:
+2. **Auth no testeable:** Supabase tiene email confirmation requerida (`mailer_autoconfirm: false`) y el proyecto alcanzó el rate limit de emails.
+   - Acción A (recomendada para QA): Auth Settings → desactivar "Enable email confirmations"
+   - Acción B: Crear usuario manualmente vía Supabase Dashboard → Authentication → Users → Invite user
 
-```
-https://apcdhwqfntujcwsbtfbu.supabase.co
-```
+## Fixes aplicados en esta sesión
+- `app/(auth)/sign-in.tsx` — texto helper ahora condicional (solo si no hay credenciales)
+- `docs/ETAPA_1A_SUPABASE_REALTIME_QA.md` — reporte con resultados reales de API
 
-Para corregirlo: Tools -> Secrets -> editar `EXPO_PUBLIC_SUPABASE_URL` ->
-borrar el valor actual completo -> pegar la URL de arriba -> Save -> reiniciar
-el workflow. `npm run doctor:node` debe dejar de mostrar el WARN.
+## Próximo stage
+Etapa 1A-QA-Smoke continua cuando el usuario:
+1. Aplica `seed.sql` en SQL Editor
+2. Desactiva email confirmation en Auth Settings (o crea usuario manual)
 
-## Proximo stage
-Etapa 1A-QA (este stage). Mientras la URL no se corrija:
-- Smoke test contra Supabase: bloqueado.
-- Validacion de RLS hostil-intent: bloqueada.
-- Tag `v0.1.0`: no crear.
-
-Cuando se corrija:
-1. Aplicar SQL segun `docs/SUPABASE_APPLY_SQL.md`.
-2. Correr `docs/SMOKE_TEST.md`.
-3. Correr `docs/RLS_CHECKLIST.md`.
-4. Recien evaluar tag de release.
+No crear tag `v0.1.0` todavía.
