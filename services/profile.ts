@@ -13,6 +13,7 @@ type ProfileRow = {
   avatar_url: string | null;
   bio: string | null;
   safety_mode?: string | null;
+  is_moderator?: boolean | null;
   created_at: string;
   updated_at?: string | null;
 };
@@ -25,6 +26,7 @@ function mapProfileRow(row: ProfileRow): Profile {
     avatarUrl: row.avatar_url,
     bio: row.bio,
     safetyMode: (row.safety_mode ?? "standard") as SafetyMode,
+    isModerator: Boolean(row.is_moderator),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at
   };
@@ -98,6 +100,7 @@ export async function updateProfile(input: UpdateProfileInput): Promise<Profile 
   if (input.displayName !== undefined) payload.display_name = input.displayName;
   if (input.avatarUrl !== undefined) payload.avatar_url = input.avatarUrl;
   if (input.bio !== undefined) payload.bio = input.bio;
+  if (input.safetyMode !== undefined) payload.safety_mode = input.safetyMode;
   const { data, error } = await supabase.from("profiles").update(payload).eq("id", userId).select("*").single();
 
   if (error || !data) {

@@ -245,6 +245,16 @@ for delete
 to authenticated
 using (user_id = auth.uid());
 
+create or replace function public.is_moderator(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select is_moderator from public.profiles where id = uid), false);
+$$;
+
 drop policy if exists "users can create reports" on public.reports;
 create policy "users can create reports"
 on public.reports
@@ -258,6 +268,21 @@ on public.reports
 for select
 to authenticated
 using (reporter_id = auth.uid());
+
+drop policy if exists "moderators can read all reports" on public.reports;
+create policy "moderators can read all reports"
+on public.reports
+for select
+to authenticated
+using (public.is_moderator(auth.uid()));
+
+drop policy if exists "moderators can update reports" on public.reports;
+create policy "moderators can update reports"
+on public.reports
+for update
+to authenticated
+using (public.is_moderator(auth.uid()))
+with check (public.is_moderator(auth.uid()));
 
 drop policy if exists "users can read own blocks" on public.blocks;
 create policy "users can read own blocks"

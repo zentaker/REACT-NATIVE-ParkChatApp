@@ -29,6 +29,7 @@ export default function RootLayout() {
           <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="profile/[id]" options={{ headerShown: true, title: "Perfil" }} />
           <Stack.Screen name="blocks" options={{ headerShown: true, title: "Mis bloqueos" }} />
+          <Stack.Screen name="moderation/inbox" options={{ headerShown: true, title: "Bandeja de moderacion" }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

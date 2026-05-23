@@ -33,11 +33,21 @@ El reporte se guarda con `reporter_id = auth.uid()`, el motivo elegido y un deta
 
 ## 3. Que pasa con un reporte
 
-1. La fila queda registrada en la tabla `reports` con estado inicial `pending`.
-2. Revision manual del equipo mientras el volumen sea bajo (Etapa 1C).
-3. Acciones posibles: descartar, advertir al autor, ocultar mensaje (`moderation_status = "hidden"`) o suspender cuenta.
-4. La persona reportada **no** recibe la identidad del reportante.
-5. Cuando exista carga suficiente, se evaluara apoyo de moderacion asistida (Post-MVP, ver ROADMAP).
+1. La fila queda registrada en la tabla `reports` con estado inicial `pending` y el motivo + detalle libre.
+2. Las cuentas marcadas como moderadoras (`profiles.is_moderator = true`) ven el reporte en la **Bandeja de moderacion** dentro de la app (Perfil > "Bandeja de moderacion", ruta `app/moderation/inbox.tsx`). La bandeja se carga con `listReportsForModeration({ status })` y filtra por estado (`pending`, `reviewed`, `actioned`, `dismissed`, `all`).
+3. Desde la bandeja, la persona moderadora puede:
+   - Abrir el contenido reportado (perfil/lugar/grupo/evento). Para mensajes de chat, abrir el chat de lugar correspondiente porque no hay deep-link directo al mensaje.
+   - Marcar el reporte como `reviewed` (visto, sin accion adicional necesaria todavia).
+   - Aplicar accion (`actioned`): advertir al autor, ocultar mensaje (`moderation_status = "hidden"`), suspender cuenta, etc. La accion concreta se realiza fuera de la app cuando haga falta (Supabase, comunicacion al usuario).
+   - Descartar (`dismissed`) cuando el reporte no procede.
+4. Cada actualizacion guarda `reviewed_by = auth.uid()`, `reviewed_at = now()` y opcionalmente `resolution_note` para trazabilidad.
+5. La persona reportada **no** recibe la identidad del reportante. La identidad del reportante solo es visible para moderadoras y para el propio reportante.
+6. Permisos en Supabase (RLS):
+   - `reports` lectura: `reporter_id = auth.uid()` o `public.is_moderator(auth.uid())`.
+   - `reports` insert: cualquier autenticado puede crear (con `reporter_id = auth.uid()`).
+   - `reports` update: solo cuentas con `is_moderator = true`.
+   - Para promover a un moderador: `update public.profiles set is_moderator = true where id = '<uuid>';` desde el dashboard de Supabase.
+7. Cuando exista carga suficiente, se evaluara apoyo de moderacion asistida y notificaciones push (Post-MVP, ver ROADMAP).
 
 ## 4. Bloqueos
 
@@ -75,8 +85,8 @@ Si se necesita ajustar el limite, los valores viven en `MESSAGE_RATE_LIMIT_MAX` 
 
 ## 7. Limites tecnicos actuales
 
-- No hay todavia bandeja de moderacion en la app. La revision se hace via dashboard de Supabase.
-- No hay notificaciones automaticas al reportante. El estado del reporte solo es visible al equipo de moderacion.
+- La bandeja de moderacion ya existe dentro de la app, pero todavia no hay notificaciones push o por correo cuando llega un reporte: las moderadoras deben abrir la bandeja periodicamente.
+- No hay notificaciones automaticas al reportante. El estado del reporte solo es visible al equipo de moderacion y al propio reportante via consulta.
 
 ## 8. Verificacion manual recomendada
 

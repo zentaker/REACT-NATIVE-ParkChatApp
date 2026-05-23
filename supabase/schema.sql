@@ -15,9 +15,12 @@ create table if not exists public.profiles (
   display_name text not null,
   avatar_url text,
   bio text,
+  is_moderator boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists is_moderator boolean not null default false;
 
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
@@ -134,8 +137,28 @@ create table if not exists public.reports (
   target_id uuid not null,
   reason text not null,
   details text,
+  status text not null default 'pending',
+  reviewed_by uuid references public.profiles(id) on delete set null,
+  reviewed_at timestamptz,
+  resolution_note text,
   created_at timestamptz not null default now()
 );
+
+alter table public.reports add column if not exists status text not null default 'pending';
+alter table public.reports add column if not exists reviewed_by uuid references public.profiles(id) on delete set null;
+alter table public.reports add column if not exists reviewed_at timestamptz;
+alter table public.reports add column if not exists resolution_note text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'reports_status_check'
+  ) then
+    alter table public.reports
+      add constraint reports_status_check
+      check (status in ('pending', 'reviewed', 'actioned', 'dismissed'));
+  end if;
+end $$;
 
 create table if not exists public.blocks (
   blocker_id uuid not null references public.profiles(id) on delete cascade,
@@ -153,6 +176,8 @@ create index if not exists groups_created_by_idx on public.groups(created_by);
 create index if not exists events_place_starts_idx on public.events(place_id, starts_at);
 create index if not exists events_created_by_idx on public.events(created_by);
 create index if not exists reports_reporter_idx on public.reports(reporter_id);
+create index if not exists reports_status_created_idx on public.reports(status, created_at desc);
+create index if not exists profiles_is_moderator_idx on public.profiles(is_moderator) where is_moderator;
 create index if not exists blocks_blocker_idx on public.blocks(blocker_id);
 
 -- Realtime: publish place_messages so Postgres Changes works end-to-end.

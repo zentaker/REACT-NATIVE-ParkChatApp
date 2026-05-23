@@ -83,6 +83,7 @@ type ProfileRow = {
   avatar_url: string | null;
   bio: string | null;
   safety_mode?: string | null;
+  is_moderator?: boolean | null;
   created_at: string;
   updated_at?: string | null;
 };
@@ -105,6 +106,7 @@ function mapProfileRow(row: ProfileRow): Profile {
     avatarUrl: row.avatar_url,
     bio: row.bio,
     safetyMode: (row.safety_mode ?? "standard") as SafetyMode,
+    isModerator: Boolean(row.is_moderator),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at
   };

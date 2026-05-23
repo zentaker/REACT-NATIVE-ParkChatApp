@@ -9,6 +9,7 @@ export const mockProfiles: Profile[] = [
     avatarUrl: null,
     bio: "Me interesan los espacios culturales, idiomas y eventos tranquilos.",
     safetyMode: "approximate",
+    isModerator: true,
     createdAt: "2026-05-01T15:00:00.000Z",
     updatedAt: "2026-05-20T15:00:00.000Z"
   },
@@ -19,6 +20,7 @@ export const mockProfiles: Profile[] = [
     avatarUrl: null,
     bio: "Practico japones y busco grupos locales.",
     safetyMode: "standard",
+    isModerator: false,
     createdAt: "2026-05-02T15:00:00.000Z",
     updatedAt: "2026-05-20T15:00:00.000Z"
   },
@@ -29,6 +31,7 @@ export const mockProfiles: Profile[] = [
     avatarUrl: null,
     bio: "Skate, lectura al aire libre y caminatas.",
     safetyMode: "standard",
+    isModerator: false,
     createdAt: "2026-05-03T15:00:00.000Z",
     updatedAt: "2026-05-20T15:00:00.000Z"
   }

@@ -9,6 +9,7 @@ import { SafetyNotice } from "../../components/SafetyNotice";
 import { useAuth } from "../../hooks/useAuth";
 import { UI_COLORS } from "../../lib/constants";
 import { signOut } from "../../services/auth";
+import { isCurrentUserModerator } from "../../services/moderation";
 import { getCurrentProfile } from "../../services/profile";
 import type { Profile } from "../../types";
 
@@ -17,6 +18,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -27,6 +29,14 @@ export default function ProfileScreen() {
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
+      });
+
+    isCurrentUserModerator()
+      .then((flag) => {
+        if (isMounted) setIsModerator(flag);
+      })
+      .catch(() => {
+        if (isMounted) setIsModerator(false);
       });
 
     return () => {
@@ -105,6 +115,15 @@ export default function ProfileScreen() {
           >
             <Text style={styles.secondaryText}>Mis bloqueos</Text>
           </Pressable>
+          {isModerator ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/moderation/inbox" as Parameters<typeof router.push>[0])}
+              style={styles.secondaryButton}
+            >
+              <Text style={styles.secondaryText}>Bandeja de moderacion</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             disabled={isSigningOut}

@@ -7,6 +7,7 @@ export type Profile = {
   avatarUrl: string | null;
   bio: string | null;
   safetyMode: SafetyMode;
+  isModerator: boolean;
   createdAt: string;
   updatedAt: string;
 };
