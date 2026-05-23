@@ -1,0 +1,262 @@
+Actúa como agente senior de configuración Expo/Replit/Supabase para ParkChat / Aldea.
+
+Stage:
+Config Debug — Resolver EXPO_PUBLIC_SUPABASE_URL mal inyectada
+
+Contexto:
+El proyecto ParkChat/Aldea está en Replit y corre Expo Web.
+
+Problema:
+npm run doctor:node sigue reportando que EXPO_PUBLIC_SUPABASE_URL contiene un JWT, igual que EXPO_PUBLIC_SUPABASE_ANON_KEY.
+
+Esto es incorrecto.
+
+Valor esperado:
+EXPO_PUBLIC_SUPABASE_URL debe ser una URL tipo:
+https://apcdhwqfntujcwsbtfbu.supabase.co
+
+EXPO_PUBLIC_SUPABASE_ANON_KEY debe ser el JWT anon/public key.
+
+El usuario afirma que ya corrigió el secret varias veces. Por lo tanto, NO asumir que el usuario simplemente lo pegó mal. Hay que diagnosticar de dónde viene el valor actual.
+
+Objetivo:
+Encontrar la fuente real que está asignando EXPO_PUBLIC_SUPABASE_URL al JWT y corregir el flujo de configuración.
+
+No objetivos:
+- No ejecutar smoke test.
+- No ejecutar RLS.
+- No agregar features.
+- No crear release.
+- No imprimir secrets completos.
+- No exponer anon key completa.
+- No usar service_role.
+- No subir .env con secretos.
+- No hardcodear secrets definitivos en código.
+
+Tarea 1 — Detener procesos y limpiar cache
+
+Detener cualquier workflow Expo corriendo.
+
+Luego ejecutar:
+
+ps aux | grep expo || true
+ps aux | grep node || true
+
+Si hay procesos viejos de Expo/Metro, documentar y detenerlos si es seguro.
+
+No dejar procesos duplicados.
+
+Tarea 2 — Diagnóstico seguro de variables
+
+Crear o actualizar:
+
+scripts/doctor-env.mjs
+
+Debe imprimir solo metadata, nunca valores completos.
+
+Para estas variables:
+
+EXPO_PUBLIC_SUPABASE_URL
+EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+Imprimir:
+- exists: true/false
+- length
+- startsWith
+- looksLikeUrl
+- looksLikeJwt
+- host si es URL parseable
+- equalityCheck: si URL y anon key son iguales o no
+
+No imprimir valores completos.
+Máximo mostrar primeros 8 caracteres.
+
+Ejecutar:
+
+node scripts/doctor-env.mjs
+
+Resultado esperado:
+- URL: exists true, looksLikeUrl true, looksLikeJwt false
+- anon key: exists true, looksLikeJwt true
+- equalityCheck false
+
+Si equalityCheck true, documentar que ambas variables reciben el mismo valor.
+
+Tarea 3 — Buscar fuentes alternativas de configuración
+
+Buscar en el repo:
+
+grep -R "EXPO_PUBLIC_SUPABASE_URL" -n . --exclude-dir=node_modules --exclude-dir=.git
+grep -R "EXPO_PUBLIC_SUPABASE_ANON_KEY" -n . --exclude-dir=node_modules --exclude-dir=.git
+grep -R "apcdhwqfntujcwsbtfbu" -n . --exclude-dir=node_modules --exclude-dir=.git
+grep -R "eyJhbGci" -n . --exclude-dir=node_modules --exclude-dir=.git
+
+También listar archivos env:
+
+find . -maxdepth 3 -name ".env*" -print
+
+Revisar si existen:
+- .env
+- .env.local
+- .env.development
+- .env.production
+- app.config.ts
+- app.config.js
+- app.json
+- eas.json
+- scripts/start-replit-expo.js
+- scripts/doctor-node.mjs
+- lib/supabase.ts
+- constants/config
+- cualquier archivo que construya Supabase config
+
+No imprimir tokens completos si aparecen.
+
+Tarea 4 — Verificar Replit runtime env directamente
+
+Ejecutar:
+
+printenv | grep EXPO_PUBLIC_SUPABASE
+
+Pero si imprime valores completos, NO copiar el output completo en docs ni respuesta final.
+
+En su lugar, usar:
+
+node -e "for (const k of ['EXPO_PUBLIC_SUPABASE_URL','EXPO_PUBLIC_SUPABASE_ANON_KEY']) { const v=process.env[k]||''; console.log(k, {exists:!!v, len:v.length, start:v.slice(0,8), isUrl:v.startsWith('https://'), isJwt:v.startsWith('eyJ')}); } console.log('same=', process.env.EXPO_PUBLIC_SUPABASE_URL===process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY)"
+
+Tarea 5 — Revisar si Replit tiene secret duplicado o mal enlazado
+
+No puedes ver el panel Secrets desde código, pero sí puedes inferir:
+
+- Si process.env.EXPO_PUBLIC_SUPABASE_URL sigue siendo JWT, el valor que llega al proceso está mal.
+- Si hay .env que pisa valores, eliminar del flujo o documentar.
+- Si scripts/start-replit-expo.js carga dotenv manualmente, revisar si está sobreescribiendo.
+
+Si existe .env con valores reales:
+- No commitearlo.
+- Moverlo fuera o documentar.
+- Confirmar .gitignore.
+
+Tarea 6 — Hacer fallback explícito controlado para Replit si el secret falla
+
+Solo si el secret sigue roto y para desbloquear preview/QA, crear una variable alternativa:
+
+EXPO_PUBLIC_SUPABASE_PROJECT_URL
+
+Actualizar lib/supabase.ts o config central para leer en este orden:
+
+1. EXPO_PUBLIC_SUPABASE_PROJECT_URL
+2. EXPO_PUBLIC_SUPABASE_URL
+
+Validar:
+- Si EXPO_PUBLIC_SUPABASE_URL parece JWT, ignorarla.
+- Si EXPO_PUBLIC_SUPABASE_PROJECT_URL es URL válida, usarla.
+- Mostrar warning seguro:
+  "EXPO_PUBLIC_SUPABASE_URL looks invalid; using EXPO_PUBLIC_SUPABASE_PROJECT_URL fallback"
+
+No hardcodear la URL en código si se puede evitar.
+No imprimir secrets.
+
+Documentar que el usuario debe crear en Replit Secrets:
+
+EXPO_PUBLIC_SUPABASE_PROJECT_URL = https://apcdhwqfntujcwsbtfbu.supabase.co
+
+Esta variable alternativa sirve para evitar que un secret dañado bloquee todo.
+
+Tarea 7 — Mejorar validación en doctor-node
+
+Actualizar scripts/doctor-node.mjs para:
+- detectar URL inválida
+- detectar URL igual a anon key
+- detectar fallback EXPO_PUBLIC_SUPABASE_PROJECT_URL
+- recomendar acción concreta
+- no imprimir valores completos
+
+Tarea 8 — Reiniciar workflow limpio
+
+Después de cambios:
+
+npm run doctor:node
+node scripts/doctor-env.mjs
+npm run typecheck
+
+Luego iniciar:
+
+npm run start:web:clear
+
+o:
+
+npx expo start --web --port 5000 --clear
+
+Confirmar:
+- la app no cae a mocks si hay URL válida por variable principal o fallback
+- no hay warning de URL JWT
+- no hay secrets impresos
+
+Tarea 9 — Documentar resultado
+
+Crear:
+
+docs/CONFIG_DEBUG_SUPABASE_ENV.md
+
+Debe incluir:
+1. Problema observado.
+2. Variables esperadas.
+3. Qué se encontró.
+4. Fuentes revisadas.
+5. Si había .env o config que pisaba secrets.
+6. Si Replit env entrega el valor equivocado.
+7. Si se añadió fallback EXPO_PUBLIC_SUPABASE_PROJECT_URL.
+8. Comandos para validar.
+9. Próximo paso.
+
+Tarea 10 — Git
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "fix: harden Supabase env validation for Replit"
+
+Si Replit permite push:
+
+git push origin main
+
+No crear tag release.
+
+Entrega final:
+
+## Config Debug — Resultado
+
+### Estado
+- EXPO_PUBLIC_SUPABASE_URL:
+- EXPO_PUBLIC_SUPABASE_PROJECT_URL:
+- EXPO_PUBLIC_SUPABASE_ANON_KEY:
+- equalityCheck:
+- app usa mocks:
+- app usa Supabase real:
+
+### Fuentes revisadas
+-
+
+### Cambios aplicados
+-
+
+### Validaciones
+- doctor-env:
+- doctor-node:
+- typecheck:
+- start:web:clear:
+
+### Bloqueadores
+-
+
+### Próximo stage
+Si Supabase ya conecta:
+Etapa 1A-QA Real — smoke test + RLS.
+
+Si sigue bloqueado:
+Replit Secrets Fix Manual — eliminar/recrear secrets desde cero.

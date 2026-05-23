@@ -4,7 +4,24 @@ import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
+const _rawUrl = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
+const _fallbackUrl = (process.env.EXPO_PUBLIC_SUPABASE_PROJECT_URL ?? "").trim();
+const _urlLooksLikeJwt = (v: string) => v.startsWith("eyJ");
+
+const supabaseUrl: string = (() => {
+  if (_rawUrl && !_urlLooksLikeJwt(_rawUrl)) return _rawUrl;
+  if (_fallbackUrl && !_urlLooksLikeJwt(_fallbackUrl)) {
+    if (_rawUrl) {
+      console.warn(
+        "[supabase] EXPO_PUBLIC_SUPABASE_URL looks invalid; " +
+        "using EXPO_PUBLIC_SUPABASE_PROJECT_URL fallback."
+      );
+    }
+    return _fallbackUrl;
+  }
+  return _rawUrl;
+})();
+
 const supabaseAnonKey = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
 type UrlValidation =
