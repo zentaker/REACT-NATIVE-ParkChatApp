@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { UI_COLORS } from "../lib/constants";
+import { DateTimeField } from "./DateTimeField";
 
 export type EventFormValues = {
   title: string;
@@ -16,21 +17,18 @@ type Props = {
   onSubmit: (values: EventFormValues) => Promise<void>;
 };
 
-function toLocalInput(value: string | undefined): string {
+function normalizeIso(value: string | undefined): string {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(
-    date.getMinutes()
-  )}`;
+  return date.toISOString();
 }
 
 export function EventForm({ initialValues, submitLabel, onSubmit }: Props) {
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [description, setDescription] = useState(initialValues?.description ?? "");
-  const [startsAt, setStartsAt] = useState(toLocalInput(initialValues?.startsAt) || "");
-  const [endsAt, setEndsAt] = useState(toLocalInput(initialValues?.endsAt) || "");
+  const [startsAt, setStartsAt] = useState(normalizeIso(initialValues?.startsAt));
+  const [endsAt, setEndsAt] = useState(normalizeIso(initialValues?.endsAt));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handlePress() {
@@ -38,8 +36,12 @@ export function EventForm({ initialValues, submitLabel, onSubmit }: Props) {
       Alert.alert("Falta titulo", "El evento necesita un titulo claro.");
       return;
     }
-    if (!startsAt.trim()) {
-      Alert.alert("Falta fecha", "La fecha y hora de inicio son obligatorias.");
+    if (!startsAt) {
+      Alert.alert("Falta fecha", "Selecciona la fecha y hora de inicio.");
+      return;
+    }
+    if (endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+      Alert.alert("Revisa el fin", "La fecha de fin debe ser posterior al inicio.");
       return;
     }
     setIsSubmitting(true);
@@ -80,26 +82,20 @@ export function EventForm({ initialValues, submitLabel, onSubmit }: Props) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Inicio</Text>
-        <TextInput
-          autoCapitalize="none"
-          onChangeText={setStartsAt}
-          placeholder="AAAA-MM-DDTHH:MM"
-          placeholderTextColor={UI_COLORS.textMuted}
-          style={styles.input}
+        <DateTimeField
           value={startsAt}
+          onChange={setStartsAt}
+          placeholder="Elegir fecha y hora"
         />
-        <Text style={styles.hint}>Formato: 2026-05-30T19:30</Text>
       </View>
 
       <View style={styles.field}>
         <Text style={styles.label}>Fin (opcional)</Text>
-        <TextInput
-          autoCapitalize="none"
-          onChangeText={setEndsAt}
-          placeholder="AAAA-MM-DDTHH:MM"
-          placeholderTextColor={UI_COLORS.textMuted}
-          style={styles.input}
+        <DateTimeField
           value={endsAt}
+          onChange={setEndsAt}
+          placeholder="Elegir fecha y hora"
+          minimumDate={startsAt ? new Date(startsAt) : undefined}
         />
       </View>
 
@@ -119,7 +115,6 @@ const styles = StyleSheet.create({
   container: { gap: 16 },
   field: { gap: 8 },
   label: { color: UI_COLORS.text, fontSize: 14, fontWeight: "800" },
-  hint: { color: UI_COLORS.textMuted, fontSize: 12 },
   input: {
     backgroundColor: UI_COLORS.surface,
     borderColor: UI_COLORS.border,
