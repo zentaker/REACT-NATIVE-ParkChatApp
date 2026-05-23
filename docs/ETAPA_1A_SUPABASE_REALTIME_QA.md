@@ -1,132 +1,198 @@
-# Etapa 1A-QA — Conexion Supabase real, smoke test y RLS
+# Etapa 1A-QA Real — Supabase Realtime Validation
 
-Reporte de la sesion 23-may-2026.
+Reporte actualizado: 23-may-2026
 
-## 1. Configuracion de secrets
+---
 
-| Secret | Estado | Validacion |
+## 1. Estado final
+
+| Item | Estado |
+|---|---|
+| Supabase real | ✅ Conectado (no mocks) |
+| Mocks activos | ✅ Desactivados — URL válida |
+| Auth / registro | ⏸ BLOQUEADO — SQL sin aplicar |
+| Profile | ⏸ BLOQUEADO — SQL sin aplicar |
+| Places reales | ⏸ BLOQUEADO — SQL sin aplicar |
+| Chat realtime | ⏸ BLOQUEADO — SQL sin aplicar |
+| RLS | ⏸ BLOQUEADO — SQL sin aplicar |
+| Grupos | ⏸ BLOQUEADO — SQL sin aplicar |
+| Eventos | ⏸ BLOQUEADO — SQL sin aplicar |
+| Reportes/bloqueos | ⏸ BLOQUEADO — SQL sin aplicar |
+| Release readiness | ❌ No — SQL requerido primero |
+
+---
+
+## 2. Credenciales
+
+| Variable | Estado |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | ✅ Válida — `apcdhwqfntujcwsbtfbu.supabase.co` |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | ✅ JWT presente (len=208) |
+| Valores idénticos | ✅ No — son distintos |
+| App usa backend real | ✅ Confirmado |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ Ausente — correcto |
+
+**Verificado con:** `npm run doctor:node` → `[OK] Supabase ready (effective): app will connect to real Supabase`
+
+---
+
+## 3. SQL aplicado en Supabase
+
+Verificación vía Supabase REST API con el anon key:
+
+| Tabla | Estado |
+|---|---|
+| `profiles` | ❌ HTTP 404 — tabla no existe |
+| `places` | ❌ HTTP 404 — tabla no existe |
+| `place_messages` | ❌ HTTP 404 — tabla no existe |
+| `groups` | ❌ HTTP 404 — tabla no existe |
+| `group_members` | ❌ HTTP 404 — tabla no existe |
+| `events` | ❌ HTTP 404 — tabla no existe |
+| `event_rsvps` | ❌ HTTP 404 — tabla no existe |
+| `reports` | ❌ HTTP 404 — tabla no existe |
+| `blocks` | ❌ HTTP 404 — tabla no existe |
+
+**Conclusión: ningún archivo SQL fue aplicado todavía en el proyecto Supabase.**
+
+### Archivos SQL disponibles en el repo
+
+| Archivo | Líneas | Contenido |
 |---|---|---|
-| `EXPO_PUBLIC_SUPABASE_URL` | set, **invalido** | Contiene un JWT (`eyJhbGci...`, len=208) en lugar de la URL del proyecto |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | set, valido | JWT presente (len=208) |
-| `SUPABASE_SERVICE_ROLE_KEY` | no presente | Correcto: nunca debe estar en el cliente |
+| `supabase/schema.sql` | 198 | Tablas, triggers, índices, realtime publication |
+| `supabase/profiles-trigger.sql` | 37 | Trigger auto-create profile al signup |
+| `supabase/triggers.sql` | 52 | Rate limit de mensajes |
+| `supabase/policies.sql` | 306 | RLS policies por tabla |
+| `supabase/seed.sql` | 187 | Places iniciales (Parque Kennedy, Barranco Plaza, etc.) |
 
-Valor confirmado por el usuario para la URL:
-`https://apcdhwqfntujcwsbtfbu.supabase.co`. No esta aplicado todavia en
-Replit Secrets.
+### Nombres de tabla — sin mismatch
 
-### Acciones del agente
-- `lib/supabase.ts` valida estrictamente: exige `https://*.supabase.co` (o
-  `http://localhost` en dev) y reporta el motivo exacto del rechazo en consola
-  sin imprimir el valor del secret.
-- `scripts/doctor-node.mjs` detecta cuando el campo URL contiene un JWT
-  (prefijo `eyJ`) y lo marca como WARN, sin imprimir el valor.
+Schema y código usan exactamente los mismos nombres:
+`profiles`, `places`, `place_messages`, `groups`, `group_members`,
+`events`, `event_rsvps`, `reports`, `blocks`
 
-### Resultado
-Cliente cae a mocks. Backend real NO conectado. **Bloqueador unico para
-avanzar el resto de tareas QA.**
+---
 
-## 2. SQL preparado
+## 4. Auth / Profile
 
-Archivos listos para aplicar (no aplicados desde Replit):
+⏸ No ejecutado — requiere que las tablas existan primero.
 
-| Archivo | Estado | Notas |
+Lógica confirmada en código:
+- `supabase/schema.sql` incluye trigger `on_auth_user_created` que crea
+  automáticamente un row en `public.profiles` al registrar usuario nuevo.
+- `services/auth.ts` usa `supabase.auth.signUp()` y `supabase.auth.signInWithPassword()`.
+
+---
+
+## 5. Places reales
+
+⏸ No ejecutado — requiere `places` table + seed data.
+
+`supabase/seed.sql` define: Parque Kennedy, Barranco Plaza, Cafe Cultural
+Miraflores, Coworking Creativo — con IDs fijos y coordenadas.
+
+---
+
+## 6. Chat realtime
+
+⏸ No ejecutado.
+
+Implementación confirmada en `services/messages.ts`:
+- Usa `supabase.channel()` con filter por `place_id`.
+- `schema.sql` incluye `alter publication supabase_realtime add table public.place_messages` (idempotente).
+
+---
+
+## 7. RLS
+
+⏸ No ejecutado.
+
+`supabase/policies.sql` define RLS para todas las tablas. Policies clave:
+- `profiles`: readable by authenticated, update solo el propio.
+- `places`: readable si `visibility = 'public'`.
+- `place_messages`: select/insert by authenticated, insert solo con propio `user_id`.
+- `groups`, `events`, `reports`, `blocks`: por `auth.uid()`.
+
+---
+
+## 8. QA Grupos / Eventos / Reportes / Bloqueos
+
+⏸ No ejecutado — requiere schema.
+
+---
+
+## 9. QA Moderation Inbox
+
+⏸ No ejecutado.
+
+Requiere schema + `profiles.is_moderator = true` en al menos un usuario.
+SQL para asignar moderador (ejecutar en SQL Editor de Supabase):
+```sql
+update public.profiles set is_moderator = true where id = '<user-uuid>';
+```
+
+---
+
+## 10. Bugs encontrados
+
+| Bug | Impacto | Estado |
 |---|---|---|
-| `supabase/schema.sql` | OK | Tablas, indices, trigger `handle_new_user`, publicacion realtime de `place_messages`. Idempotente. |
-| `supabase/profiles-trigger.sql` | OK (creado en esta sesion) | Copia standalone del trigger de auto-creacion de profile. |
-| `supabase/triggers.sql` | OK | Rate limit y anti-duplicado en `place_messages` (5/60s + duplicado consecutivo). |
-| `supabase/policies.sql` | OK | RLS para todas las tablas del MVP. |
-| `supabase/seed.sql` | OK | Places de ejemplo. Opcional. |
+| `EXPO_PUBLIC_SUPABASE_URL` tenía JWT pegado (mismo valor que anon key) | App usaba mocks | ✅ Corregido — URL válida en Secrets |
+| Puerto 5000 no mapeado a proxy público de Replit | Canvas iframe en blanco | ✅ Corregido — proxy en 8081 via `scripts/start-web.sh` |
+| Metro bundler cacheaba bundle con credenciales viejas | App seguía en mocks tras corregir URL | ✅ Corregido — reinicio limpio |
+| SQL nunca aplicado en Supabase | Todas las tablas inexistentes (HTTP 404) | ⏸ Pendiente — acción del usuario |
 
-Guia de aplicacion: `docs/SUPABASE_APPLY_SQL.md`.
+---
 
-## 3. Smoke test
+## 11. Fixes aplicados
 
-**Plan:** `docs/SMOKE_TEST.md` (sign-up + profile creation, optimistic send,
-two-client realtime, channel cleanup, re-login).
+| Archivo | Fix |
+|---|---|
+| `lib/supabase.ts` | Fallback a `EXPO_PUBLIC_SUPABASE_PROJECT_URL` si URL principal parece JWT |
+| `scripts/doctor-node.mjs` | Detección de valores idénticos URL/anon key, sugerencia de fallback |
+| `scripts/doctor-env.mjs` | Nuevo — diagnóstico seguro de las 3 variables env |
+| `scripts/start-web.sh` | Proxy 8081→5000 para acceso público |
+| `app/_layout.tsx` | Phone frame web (max-width 430px) |
+| `supabase/profiles-trigger.sql` | Standalone trigger creado en esta sesión |
+| `docs/SUPABASE_APPLY_SQL.md` | Guía de aplicación de SQL |
 
-**Estado de ejecucion:** NO ejecutado.
+---
 
-**Razon:** la app esta en mocks porque la URL es invalida. Ejecutar el smoke
-test contra mocks no valida nada de Supabase, por lo que se posterga hasta
-corregir el secret.
+## 12. Validaciones de entorno
 
-## 4. Realtime test
+| Check | Resultado |
+|---|---|
+| `doctor:node` | ✅ `[OK] Supabase ready (effective)` |
+| `typecheck` | ✅ 0 errores |
+| Preview web | ✅ Running en puertos 5000/8081 |
+| App usa mocks | ✅ No — URL válida activa backend real |
+| Secrets impresos | ✅ No |
+| `service_role` usado | ✅ No |
 
-**Plan:** dos clientes simultaneos en el mismo `place_id`, uno envia y el
-otro debe recibir sin refresh; verificar deduplicacion del eco optimista.
+---
 
-**Estado:** NO ejecutado.
+## 13. Bloqueador activo
 
-**Razon:** misma que el smoke test.
+**SQL sin aplicar en Supabase.**
 
-## 5. RLS test
+El usuario debe ejecutar en el **SQL Editor** del dashboard de Supabase
+(`https://supabase.com/dashboard/project/apcdhwqfntujcwsbtfbu/sql`),
+en este orden:
 
-**Plan:** `docs/RLS_CHECKLIST.md` cubre intentos hostiles para cada tabla con
-RLS activado (`profiles`, `places`, `place_messages`, `groups`,
-`group_members`, `events`, `event_rsvps`, `reports`, `blocks`).
+1. `supabase/schema.sql`
+2. `supabase/triggers.sql`
+3. `supabase/policies.sql`
+4. `supabase/seed.sql` (opcional pero recomendado)
 
-**Estado:** NO ejecutado contra base real.
+Ver instrucciones completas en `docs/SUPABASE_APPLY_SQL.md`.
 
-**Lo que SI esta listo:**
-- Policies escritas y revisadas en `supabase/policies.sql`.
-- Checklist con 9 grupos de pruebas en `docs/RLS_CHECKLIST.md`.
+---
 
-## 6. Etapa 1B y 1C — revision contra Supabase real
+## 14. Próximo stage
 
-**Estado:** NO validado contra base real.
+**Si el usuario aplica el SQL →** continuar Etapa 1A-QA-Smoke: sign-up,
+profile, places, chat realtime, RLS, grupos, eventos, reportes.
 
-**Lo que SI esta verificado a nivel codigo:**
+**Si el SQL falla →** Etapa 1A-SQL-Fix: revisar errores exactos del SQL
+Editor y corregir schema.
 
-Etapa 1B:
-- `services/groups.ts` y `services/events.ts` insertan con
-  `created_by = auth.uid()`.
-- Pantallas de creacion, edicion, borrado, join/leave y RSVP estan wireadas y
-  pasan typecheck.
-- "Mis grupos" y "Mis eventos" wireados desde `/profile`.
-
-Etapa 1C:
-- `services/moderation.ts` expone reporte/bloqueo/listado de bloqueados, sin
-  permitir auto-bloqueo.
-- `app/place/[id]/chat.tsx` filtra mensajes bloqueados en cliente, muestra
-  contador de ocultos, dialogo de reporte con motivos predefinidos.
-- `app/blocks.tsx` y `app/profile/[id].tsx` operativas.
-- Trigger SQL de rate limit aplicado en `supabase/triggers.sql`.
-
-Validacion contra RLS real queda pendiente hasta corregir la URL.
-
-## 7. Bugs encontrados
-
-| Bug | Origen | Estado |
-|---|---|---|
-| `EXPO_PUBLIC_SUPABASE_URL` aceptado con cualquier `http(s)` | Cliente Supabase v1 de la sesion | Fixed: validacion estricta `*.supabase.co` |
-| Validador no explicaba motivo del rechazo | Cliente Supabase v1 de la sesion | Fixed: log detalla longitud, prefijo, host, path |
-| `doctor:node` daba "set" sin validar formato | scripts/doctor-node.mjs v1 | Fixed: detecta JWT, protocolo, host y path |
-| Layout warnings de rutas `place`/`group`/`event` | `app/_layout.tsx` | Fixed: rutas registradas como `place/[id]`, etc. |
-| Post-merge hook no configurado | `.replit` sin `[postMerge]` | Fixed: script y config en su lugar |
-
-## 8. Fixes aplicados en esta sesion
-
-- `lib/supabase.ts` — validacion estricta + log con motivo.
-- `scripts/doctor-node.mjs` — detecta JWT-as-URL.
-- `supabase/profiles-trigger.sql` — standalone (nuevo).
-- `docs/SUPABASE_APPLY_SQL.md` — guia de aplicacion (nuevo).
-- `docs/TASKS_IN_PROGRESS_QA_PLAN.md` — plan QA tasks abiertas (nuevo).
-- `docs/REPLIT_CURRENT_STATUS.md` — snapshot del workspace (actualizado).
-- `docs/ETAPA_1A_SUPABASE_REALTIME_QA.md` — este reporte (nuevo).
-
-## 9. Estado final
-
-- Codigo: listo para Supabase real.
-- SQL: listo para aplicar.
-- QA contra base real: bloqueado por `EXPO_PUBLIC_SUPABASE_URL` invalido.
-- Release: NO crear tag `v0.1.0` hasta cerrar smoke test y RLS.
-
-## 10. Proximo stage
-
-Si el usuario corrige el secret hoy:
-- **Etapa 1A-QA (continuar)** — aplicar SQL, correr smoke test, correr RLS
-  checklist.
-- Despues -> **Etapa 1D — QA tasks #6-#8 contra Supabase real + tag v0.1.0**.
-
-Si el secret no se corrige:
-- Stage queda en pausa con este reporte como entrega.
+**No crear tag `v0.1.0` hasta cerrar smoke test y RLS checklist.**
