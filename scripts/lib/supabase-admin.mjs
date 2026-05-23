@@ -63,16 +63,18 @@ export function createAnonClient() {
 
 /**
  * Returns a Supabase client authenticated as a specific user.
- * Used for RLS testing with real user JWTs.
+ * Passes the JWT via the global Authorization header so every request
+ * is treated as that user by PostgREST/RLS — same as the real app.
  */
 export function createUserClient(accessToken) {
   const url = getSupabaseUrl();
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   if (!anonKey) throw new Error('EXPO_PUBLIC_SUPABASE_ANON_KEY not found.');
-  const client = createClient(url, anonKey, {
+  return createClient(url, anonKey, {
+    global: {
+      headers: { Authorization: 'Bearer ' + accessToken },
+    },
     auth: { autoRefreshToken: false, persistSession: false },
     realtime: { transport: ws },
   });
-  client.auth.setSession({ access_token: accessToken, refresh_token: '' });
-  return client;
 }

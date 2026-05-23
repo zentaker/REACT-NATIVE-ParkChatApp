@@ -25,7 +25,12 @@
     "replit:mobile": "node ./scripts/start-replit-expo.js mobile",
     "replit:lan": "node ./scripts/start-replit-expo.js lan",
     "typecheck": "tsc --noEmit",
-    "supabase:policies": "node ./scripts/print-policies-sql.mjs"
+    "supabase:policies": "node ./scripts/print-policies-sql.mjs",
+    "supabase:doctor-db": "node scripts/doctor-db-url.mjs",
+    "supabase:apply:policies": "node scripts/apply-supabase-sql.mjs --file supabase/policies.sql",
+    "supabase:apply:triggers": "node scripts/apply-supabase-sql.mjs --file supabase/triggers.sql",
+    "supabase:apply:seed": "node scripts/apply-supabase-sql.mjs --file supabase/seed.sql",
+    "supabase:apply:all": "node scripts/apply-supabase-sql.mjs --all"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

@@ -14,46 +14,52 @@ Snapshot del workspace al 23-may-2026.
 - Preview URL: `https://50b81fc1-2e35-482d-9b2f-19cab751220c-00-1cjkyqq5duxei.worf.replit.dev/`
 
 ## Validaciones
+
 | Check | Estado |
 |---|---|
 | `npm run doctor:node` | ✅ OK — URL válida, anon key presente, backend real activo |
 | `npm run typecheck` | ✅ OK — 0 errores |
-| Preview web | ✅ Login screen real de Supabase |
-| App usa mocks | ✅ No — Supabase real conectado |
+| `npm run supabase:doctor-db` | ✅ OK — 10/10 checks (secrets, Management API, SQL execution) |
+| `npm run supabase:apply:policies` | ✅ OK — 33 políticas RLS aplicadas |
+| `npm run supabase:apply:triggers` | ✅ OK |
+| `npm run supabase:apply:seed` | ✅ OK — 4 places, 5 groups, 4 events |
+| `npm run qa:seed` | ✅ OK — QA users + profiles + seed data |
+| `npm run qa:smoke` | ✅ **23/23 PASS** — auth, places, chat, reports, blocks, groups, events, RLS |
 
-## Backend Supabase
-- **URL:** `apcdhwqfntujcwsbtfbu.supabase.co` ✅
-- **Anon key:** válida ✅
-- **Supabase real:** conectado ✅
-- **Mocks:** desactivados ✅
-- **Tablas (9/9):** existen ✅
-- **Seed:** ❌ NO aplicado — places vacíos
-- **service_role:** ausente ✅
+## Secrets configurados
 
-## Etapas
-| Etapa | Estado código | QA real |
+| Secret | Estado |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | ✅ Presente |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | ✅ Presente (len=208) |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ Presente (len=219) — solo scripts/ |
+| `SUPABASE_DB_PASSWORD` | ✅ Presente (len=16) — documentación/validación |
+| `SUPABASE_ACCESS_TOKEN` | ✅ Presente (len=44) — Management API |
+
+**Ningún secret se usa en app code / frontend.**
+
+## Supabase DB — Schema real
+
+Proyecto: `apcdhwqfntujcwsbtfbu` | Región: `sa-east-1` | PG: 17.6
+
+| Tabla | Estado | Notas |
 |---|---|---|
-| Etapa 0 — base UI + nav | ✅ Hecho | N/A |
-| Etapa 1A — auth + places + chat realtime | ✅ Hecho | ⏸ Parcial — tablas OK, seed pendiente |
-| Etapa 1B — grupos y eventos | ✅ Hecho | ⏸ Pendiente — depende de auth + seed |
-| Etapa 1C — reportes + bloqueos + rate limit | ✅ Hecho | ⏸ Pendiente — depende de auth |
-| Etapa 2 / 3 / Post-MVP | No iniciado | — |
-
-## Bloqueadores activos
-1. **Seed vacío:** `supabase/seed.sql` no fue aplicado → tabla `places` tiene 0 rows.
-   - Acción: SQL Editor → pegar y ejecutar `supabase/seed.sql`
-
-2. **Auth no testeable:** Supabase tiene email confirmation requerida (`mailer_autoconfirm: false`) y el proyecto alcanzó el rate limit de emails.
-   - Acción A (recomendada para QA): Auth Settings → desactivar "Enable email confirmations"
-   - Acción B: Crear usuario manualmente vía Supabase Dashboard → Authentication → Users → Invite user
-
-## Fixes aplicados en esta sesión
-- `app/(auth)/sign-in.tsx` — texto helper ahora condicional (solo si no hay credenciales)
-- `docs/ETAPA_1A_SUPABASE_REALTIME_QA.md` — reporte con resultados reales de API
+| `profiles` | ✅ | `role` text (no `is_moderator` bool) |
+| `places` | ✅ | `type`, `country`, `radius_meters`, `created_by` |
+| `place_messages` | ✅ | Publicada en `supabase_realtime` |
+| `groups` | ✅ | `access_level` (no `visibility`) |
+| `group_members` | ✅ | PK `id` + unique(group_id,user_id) |
+| `events` | ✅ | `access_level`, `source_type`, `source_message_id` |
+| `event_rsvps` | ✅ | PK `id` + unique(event_id,user_id) |
+| `reports` | ✅ | Columnas FK por tipo (no `target_type`/`target_id`) |
+| `blocks` | ✅ | PK `id` + unique(blocker_id,blocked_id) |
 
 ## Próximo stage
-Etapa 1A-QA-Smoke continua cuando el usuario:
-1. Aplica `seed.sql` en SQL Editor
-2. Desactiva email confirmation en Auth Settings (o crea usuario manual)
 
-No crear tag `v0.1.0` todavía.
+**Etapa 1D — Release QA y preparación v0.1.0**
+
+Pendiente:
+- Validación de Realtime en browser (manual)
+- Test de geofencing
+- Moderación end-to-end
+- Tag `v0.1.0`

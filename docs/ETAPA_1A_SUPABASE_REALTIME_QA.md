@@ -11,236 +11,126 @@ Reporte actualizado: 23-may-2026
 | Supabase real | ✅ Conectado (no mocks) |
 | Mocks activos | ✅ Desactivados — URL válida |
 | Tablas (9/9) | ✅ Existen |
-| Seed (places) | ❌ Vacío — seed.sql no fue aplicado |
-| Auth / registro | ⏸ BLOQUEADO — email confirmation requerida + rate limit |
-| Profile auto-create | ⏸ No validado — depende de auth |
-| Places en app | ⏸ No validado — seed vacío |
-| Chat realtime | ⏸ No validado — depende de auth + seed |
-| RLS (anon) | ✅ Verificado — bloqueo correcto |
-| RLS (auth user vs user) | ⏸ No validado — depende de auth |
-| Grupos | ⏸ No validado — depende de auth + seed |
-| Eventos | ⏸ No validado — depende de auth + seed |
-| Reportes/bloqueos | ⏸ No validado — depende de auth |
-| Moderation inbox | ⏸ No validado |
-| Release readiness | ❌ No — 2 acciones de usuario pendientes |
+| RLS policies (33) | ✅ Aplicadas via Management API |
+| Triggers | ✅ Aplicados (`handle_new_user`, `set_updated_at`) |
+| Seed (places/groups/events) | ✅ Aplicado (4 places, 5 groups, 4 events) |
+| QA users creados | ✅ qa.aldea.a + qa.aldea.b (email confirmed) |
+| Auth / login | ✅ Funciona con anon key + password |
+| Profile auto-create | ✅ Trigger activo |
+| Places en app | ✅ 4 places visibles para usuario autenticado |
+| Chat (place_messages) | ✅ Insert + select funcionan |
+| Reports | ✅ Insert funciona (schema real: message_id, reported_user_id) |
+| Blocks | ✅ Insert + filtrado post-block funciona |
+| Groups | ✅ Create + read funcionan (access_level real) |
+| Events + RSVP | ✅ Create + RSVP funcionan |
+| RLS malicioso | ✅ Bloqueado en 7/7 escenarios |
+| Chat realtime | ⏸ Requiere validación manual en browser (WebSocket persistente) |
 
 ---
 
-## 2. Credenciales
+## 2. Resultado smoke test — 23/23 PASS
 
-| Variable | Estado |
-|---|---|
-| `EXPO_PUBLIC_SUPABASE_URL` | ✅ Válida — `apcdhwqfntujcwsbtfbu.supabase.co` |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | ✅ JWT presente (len=208) |
-| App usa backend real | ✅ Confirmado — sin mocks |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ Ausente — correcto |
+```
+PASS: 23
+FAIL: 0
+```
 
-`npm run doctor:node` → `[OK] Supabase ready (effective): app will connect to real Supabase`
+### Detalle de checks
 
----
-
-## 3. Tablas Supabase — verificadas vía REST API
-
-| Tabla | Existe | Rows |
+| # | Check | Resultado |
 |---|---|---|
-| `profiles` | ✅ HTTP 200 | 0 |
-| `places` | ✅ HTTP 200 | 0 |
-| `place_messages` | ✅ HTTP 200 | 0 |
-| `groups` | ✅ HTTP 200 | 0 |
-| `group_members` | ✅ HTTP 200 | 0 |
-| `events` | ✅ HTTP 200 | 0 |
-| `event_rsvps` | ✅ HTTP 200 | 0 |
-| `reports` | ✅ HTTP 200 | 0 |
-| `blocks` | ✅ HTTP 200 | 0 |
-
-Todas las tablas existen. Cero rows es correcto para tablas sin seed ni usuarios todavía.
-
----
-
-## 4. Seed — `supabase/seed.sql`
-
-**Estado: NO aplicado.** La tabla `places` tiene 0 rows.
-
-El `seed.sql` define:
-- Parque Kennedy (Miraflores)
-- Barranco Plaza (Barranco)
-- Cafe Cultural Miraflores (Miraflores)
-- Coworking Creativo (Miraflores)
-
-...y grupos + eventos que dependen de un `profile` existente (el `DO $$` del seed los omite si no hay profiles todavía).
-
-**Acción requerida:** Aplicar `supabase/seed.sql` en el SQL Editor de Supabase.
+| 1 | Login User A | PASS |
+| 2 | Login User B | PASS |
+| 3 | User A reads places (4 rows) | PASS |
+| 4 | User A reads own profile | PASS |
+| 5 | User A inserts place_message | PASS |
+| 6 | User B sees message from A | PASS |
+| 7 | User B inserts reply | PASS |
+| 8 | User A sees reply from B | PASS |
+| 9 | RLS: A spoofing B user_id en place_messages | PASS (42501) |
+| 10 | RLS: A edita mensaje de B (0 rows afectadas) | PASS |
+| 11 | RLS: A edita profile de B (0 rows afectadas) | PASS |
+| 12 | A lee profile de B (permitido) | PASS |
+| 13 | A crea report con message_id real | PASS |
+| 14 | RLS: A spoofing B reporter_id | PASS (42501) |
+| 15 | A bloquea a B | PASS |
+| 16 | RLS post-block: mensajes de B filtrados para A | PASS (0 visible) |
+| 17 | RLS: A spoofing B blocker_id | PASS (42501) |
+| 18 | A crea grupo (access_level=public) | PASS |
+| 19 | B lee grupos públicos (5 visibles) | PASS |
+| 20 | RLS: A spoofing B created_by en groups | PASS (42501) |
+| 21 | A crea evento | PASS |
+| 22 | B hace RSVP a evento de A | PASS |
+| 23 | RLS: B spoofing A user_id en event_rsvps | PASS (42501) |
 
 ---
 
-## 5. RLS — verificado con anon key (sin JWT de usuario)
+## 3. Usuarios QA
 
-| Test | Resultado | Esperado |
+| Usuario | ID | Estado |
 |---|---|---|
-| GET `places` (anon) | ✅ HTTP 200, rows=0 | ✅ RLS filtra — sin rows visibles |
-| GET `profiles` (anon) | ✅ HTTP 200, rows=0 | ✅ RLS filtra — sin rows visibles |
-| INSERT `place_messages` (anon) | ✅ HTTP 401 `42501` RLS violation | ✅ Bloqueado correctamente |
-| INSERT `places` (anon) | ✅ HTTP 400 no grant anon | ✅ Bloqueado correctamente |
+| qa.aldea.a@example.com | ef1489ce-... | ✅ Creado, email confirmado, profile OK |
+| qa.aldea.b@example.com | 074afbbd-... | ✅ Creado, email confirmado, profile OK |
 
-RLS funciona para usuarios no autenticados. Verificación inter-usuario (A vs B) pendiente hasta tener auth funcional.
-
-### Policies revisadas — sin issues en código
-
-- `profiles`: readable by authenticated, update/insert solo propio `auth.uid()`
-- `places`: select by authenticated si `visibility='public'`, insert by authenticated
-- `place_messages`: select by authenticated (filtra bloqueados), insert con `user_id=auth.uid()`, delete solo propio
-- `groups`: select público, insert/update/delete con `created_by=auth.uid()`
-- `group_members`: insert/delete con `user_id=auth.uid()`
-- `events`: select all authenticated, insert/update/delete con `created_by=auth.uid()`
-- `event_rsvps`: select all, insert/update/delete con `user_id=auth.uid()`
-- `reports`: insert con `reporter_id=auth.uid()`, select solo propios o moderadores
-- `blocks`: select/insert/delete con `blocker_id=auth.uid()`
+Password (QA-only, no producción): `Ald3aQA!2026`
 
 ---
 
-## 6. Auth / Profile
+## 4. Correcciones críticas aplicadas
 
-**Estado: BLOQUEADO.**
+### Schema drift corregido
 
-Razones:
-1. `mailer_autoconfirm: false` — email confirmation requerida en Supabase
-2. Rate limit: HTTP 429 al intentar signup programático
-3. `anonymous_users_enabled: false`
+El DB real de Supabase tenía un schema distinto al `schema.sql` original. Se corrigieron:
 
-No se puede crear usuarios de prueba vía API. Se requiere intervención del usuario.
+- `services/moderation.ts`: Reports usa `message_id/reported_user_id` (no `target_type/target_id`). `isCurrentUserModerator` usa `role = 'moderator'` (no `is_moderator`).
+- `services/groups.ts`: Create/update usa `access_level` (no `visibility`).
+- `supabase/seed.sql`: Reescrito con columnas reales (`type`, `country`, `radius_meters`, `access_level`).
+- `supabase/policies.sql`: Bugs corregidos (`groups.visibility → access_level`, `is_moderator → role`).
 
-**Acción requerida (elegir una):**
+### Bug crítico en QA client
 
-**Opción A (recomendada para QA):** Deshabilitar confirmación de email temporalmente:
-- Supabase Dashboard → Authentication → Settings → Email Auth
-- Desactivar "Enable email confirmations"
-- Después de QA, volver a activar
-
-**Opción B:** Crear usuario manualmente en Supabase:
-- Supabase Dashboard → Authentication → Users → Invite user
-- Crear un usuario de prueba con email real
-- Luego aplicar seed.sql (usa el primer profile que exista)
-
-**Opción C:** Registrarse manualmente en la app del preview y confirmar el email recibido.
+`createUserClient()` en `scripts/lib/supabase-admin.mjs` usaba `setSession()` asíncrono de forma síncrona, causando que el JWT nunca se enviara en los headers. Corregido usando `global.headers.Authorization` en el constructor del cliente.
 
 ---
 
-## 7. Smoke test Auth / Profile
+## 5. Automatización DB
 
-⏸ Pendiente — requiere resolución del bloqueo de auth.
+Ver `docs/SUPABASE_DB_AUTOMATION.md` para detalles completos.
 
-Plan una vez desbloqueado:
-1. Registrar usuario A con display_name
-2. Confirmar signup exitoso
-3. Verificar row en `profiles` con `id = auth.user.id` y `display_name` correcto
-4. Logout + re-login
-5. Confirmar sesión activa
-
----
-
-## 8. Smoke test Places
-
-⏸ Pendiente — requiere seed + auth.
-
----
-
-## 9. Smoke test Chat Realtime
-
-⏸ Pendiente — requiere seed + auth.
-
-Plan:
-- Dos sesiones/ventanas con usuarios A y B en mismo `place_id`
-- A envía → B recibe sin refresh
-- Verificar realtime en `supabase_realtime` publication para `place_messages`
-
----
-
-## 10. QA Grupos / Eventos / Reportes / Bloqueos
-
-⏸ Pendiente — requiere auth.
-
----
-
-## 11. Moderation Inbox
-
-⏸ Pendiente.
-
-Para asignar rol moderador (ejecutar en SQL Editor tras tener al menos un user registrado):
-```sql
-update public.profiles set is_moderator = true where id = '<user-uuid>';
+Scripts usados:
+```bash
+npm run supabase:doctor-db        # 10/10 OK
+npm run supabase:apply:policies   # 33 políticas aplicadas
+npm run supabase:apply:triggers   # OK
+npm run supabase:apply:seed       # OK
+npm run qa:seed                   # users + seed OK
+npm run qa:smoke                  # 23/23 PASS
 ```
 
 ---
 
-## 12. Bugs encontrados
+## 6. Validación de Realtime (manual)
 
-| Bug | Impacto | Estado |
-|---|---|---|
-| Texto "Sin credenciales de Supabase, Aldea usa datos mock" hardcoded en sign-in | Visible siempre aunque credenciales sí estén configuradas | ✅ Corregido — ahora condicional |
-| Seed.sql no aplicado | Places vacíos, grupos/eventos sin datos iniciales | ⏸ Acción de usuario |
-| Email rate limit Supabase (free tier) | No se puede registrar usuario de prueba vía API | ⏸ Acción de usuario |
-| Email confirmation requerida | Bloquea smoke test de auth programático | ⏸ Acción de usuario |
+Realtime requiere WebSocket persistente — no automatizable desde Node.js script.
 
----
+**Pasos manuales:**
+1. Abrir la app en dos pestañas del browser.
+2. Login con QA_UserA en la primera pestaña.
+3. Login con QA_UserB en la segunda pestaña.
+4. Ambos navegan al mismo parque (Parque Kennedy).
+5. QA_UserA envía un mensaje → debe aparecer en la pestaña de QA_UserB en < 1 segundo.
+6. QA_UserB responde → debe aparecer en la pestaña de QA_UserA.
 
-## 13. Fixes aplicados en esta sesión
-
-| Archivo | Fix |
-|---|---|
-| `app/(auth)/sign-in.tsx` | Texto helper ahora condicional: se muestra solo si `!isSupabaseConfigured` |
-| `docs/ETAPA_1A_SUPABASE_REALTIME_QA.md` | Reporte actualizado con resultados reales de API |
-| `docs/REPLIT_CURRENT_STATUS.md` | Estado actualizado (tablas existen, seed pendiente) |
+`place_messages` está publicada en `supabase_realtime` (triggers.sql).
 
 ---
 
-## 14. Validaciones de entorno
+## 7. Próximo stage
 
-| Check | Resultado |
-|---|---|
-| `doctor:node` | ✅ `[OK] Supabase ready (effective)` |
-| `typecheck` | ✅ 0 errores |
-| Preview web | ✅ Running — login screen real |
-| App usa mocks | ✅ No |
-| Secrets impresos | ✅ No |
-| `service_role` usado | ✅ No |
-| Tablas API (9/9) | ✅ Existen |
-| RLS anon | ✅ Bloqueado correctamente |
+**Etapa 1D — Release QA y preparación v0.1.0**
 
----
-
-## 15. Bloqueadores activos
-
-| Bloqueador | Causa | Acción |
-|---|---|---|
-| Seed vacío | `seed.sql` no fue aplicado | Aplicar en SQL Editor |
-| Auth no testeable | Email confirmation ON + rate limit | Desactivar confirmación en Auth Settings (**Opción A**) o registrar manualmente |
-
----
-
-## 16. Release readiness
-
-❌ No ready.
-
-Criterios pendientes:
-- [ ] seed.sql aplicado → places con datos reales
-- [ ] Auth: desactivar email confirmation para QA (o usuario manual)
-- [ ] Registro/login funciona en app
-- [ ] Profile se crea automáticamente
-- [ ] Places seed visibles post-login
-- [ ] Chat place_messages funciona
-- [ ] Realtime dos clientes verificado
-- [ ] RLS inter-usuario validado
-- [ ] Grupos/eventos funcionales
-- [ ] Reportes/bloqueos funcionales
-
----
-
-## 17. Próximo stage
-
-**Con las dos acciones del usuario resueltas** (seed + auth):
-→ Continuar Etapa 1A-QA-Smoke: auth, profile, places, chat, RLS inter-user, grupos, eventos, reportes.
-
-**Si auth sigue bloqueado:**
-→ Etapa 1A-Auth-Fix: investigar config de Supabase Auth.
-
-**No crear tag `v0.1.0` hasta cerrar smoke test completo.**
+Pendiente:
+- Validación de Realtime en browser (manual)
+- Test de geofencing (location permission + radius check)
+- Validación de moderación end-to-end (reportar → revisar como moderador)
+- Preparación de release notes y tag `v0.1.0`
