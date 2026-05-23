@@ -1,5 +1,7 @@
 # Aldea MVP PRD
 
+> Hoja de ruta del proyecto: ver [ROADMAP.md](./ROADMAP.md).
+
 ## Problema
 
 Las redes sociales actuales no organizan bien la vida comunitaria alrededor de lugares fisicos. Un parque, cafe, plaza o coworking puede tener actividad real, pero esa actividad queda fragmentada en grupos privados, mensajes sueltos o eventos aislados.

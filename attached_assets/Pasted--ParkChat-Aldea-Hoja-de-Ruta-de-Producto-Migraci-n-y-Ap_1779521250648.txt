@@ -1,0 +1,310 @@
+# ParkChat / Aldea — Hoja de Ruta de Producto, Migración y App Funcional de Grafos
+Fecha: 2026-05-23
+Documento de trabajo para gestionar el proyecto en Replit/GitHub y llevar la app desde MVP funcional hasta una red social geoespacial con grafo social. El producto se inspira en patrones de UX de apps como NomadTable, pero el diferencial de Aldea es que la unidad social principal no es el viaje ni el evento: es el lugar físico.
+Nota legal/producto: el objetivo es lograr paridad de experiencia, claridad visual y dinámica social comparable, no copiar logos, marca, assets, screenshots, copy exacto, iconografía propietaria ni trade dress de terceros.
+## 1. Resumen ejecutivo
+Aldea es una app móvil de comunidad geoespacial. Cada parque, café, plaza, coworking, universidad o barrio puede tener un espacio digital propio con chat público, grupos, eventos espontáneos y relaciones persistentes entre personas, temas y lugares. La visión final es una app funcional de grafos: las interacciones no se quedan como mensajes aislados, sino que se convierten en conexiones consultables entre usuarios, lugares, conversaciones, grupos, eventos y temas.
+La secuencia de validación sigue siendo:
+lugar físico → conversación pública → grupo/evento → relaciones persistentes → grafo social geoespacial
+La estrategia técnica recomendada es incremental: Supabase/Postgres para el MVP, edge events relacionales para preparar grafo, y Neo4j/AuraDB cuando la actividad social ya justifique consultas de profundidad, recomendaciones y visualización de conexiones.
+## 2. Posicionamiento
+Posicionamiento corto:
+Aldea es una red social geoespacial donde cada lugar tiene una comunidad viva: chat local, grupos, eventos espontáneos y conexiones reales entre personas, temas y espacios.
+Diferencia central frente a NomadTable-style products:
+| Producto / patrón | Centro de gravedad | Cómo se traduce en Aldea |
+| --- | --- | --- |
+| NomadTable-style | Viajes, actividades cercanas, viajeros y meetups | Se toma como referencia de UX social: descubrimiento rápido, perfiles, actividades, chat y seguridad. |
+| Aldea / ParkChat | Lugares físicos persistentes | Cada lugar tiene memoria social: chat, grupos, eventos, temas y conexiones que sobreviven al momento. |
+
+## 3. Supuestos competitivos y UX inspiracional
+Las fuentes públicas de NomadTable describen una experiencia enfocada en encontrar personas mientras viajas solo, ver actividades cercanas, unirte o crear actividades, ver personas cercanas, planear futuros viajes, usar mensajes/grupos, recomendaciones de actividades y perfiles verificados. Aldea tomará esos patrones de claridad y acción rápida, pero cambiará la lógica: en vez de “viaje/evento primero”, será “lugar primero”.
+| Patrón UX inspirado | Lo que se busca conservar | Adaptación Aldea |
+| --- | --- | --- |
+| Nearby discovery | Sensación de “hay gente/planes cerca” | Mapa/lista de lugares vivos con actividad agregada. |
+| Activity cards | Acciones rápidas: join/create | Eventos nacen desde un lugar o desde una conversación. |
+| Group chats | Coordinación social inmediata | Chat público por lugar + chats de grupo. |
+| Profiles + verification | Confianza para encuentros físicos | Perfil, safety mode, reportes, verificación futura. |
+| Travel/social look | UI ligera, friendly, mobile-first | Sistema visual propio: cards redondas, chips, CTA claros, mapa/lista. |
+| Premium discovery | Más alcance y visibilidad | Futuro: grupos destacados, eventos verificados, tools para organizadores. |
+
+## 4. Principios de producto
+- Space-first: la unidad primaria es el lugar, no el feed global.
+- Safety-first: no se muestra ubicación exacta de usuarios; la presencia se comunica de forma agregada o contextual.
+- Conversation-first: el chat público por lugar es el corazón del MVP.
+- Graph-ready: guardar relaciones desde el día uno, aunque Neo4j llegue después.
+- Mobile-first: Expo Go y teléfono físico son validación clave para UX y ubicación.
+- No dating default: la app debe sentirse comunitaria, no romántica ni marketplace.
+- Visual parity without copying: emular claridad de flujo y energía social, no activos propietarios.
+
+## 5. Estados de gestión del proyecto
+Estos estados se usan para manejar cada stage, issue o epic dentro de Replit/GitHub.
+| Estado | Definición | Gate de salida |
+| --- | --- | --- |
+| PLANNED | Está definido, pero no se ha iniciado. | Tiene objetivo, alcance y criterios de aceptación. |
+| IN_PROGRESS | El agente o equipo está implementando. | Hay cambios en código/docs y validación parcial. |
+| BLOCKED | No puede avanzar por dependencia externa o error técnico. | Existe bloqueo documentado con siguiente acción concreta. |
+| LOCAL_QA | Validado en entorno local o shell del workspace. | Pasan comandos mínimos: doctor/typecheck/tests. |
+| REPLIT_QA | Validado en Replit como workspace. | Pasan doctor, install/typecheck y docs actualizadas. |
+| SUPABASE_QA | Validado contra backend real. | Auth/queries/realtime/RLS pasan en Supabase. |
+| MOBILE_QA | Validado en Expo Go/dispositivo. | Flujo visible en teléfono; no solo web preview. |
+| READY_TO_RELEASE | Listo para commit/tag/release. | Git limpio, docs, no secretos, no artefactos prohibidos. |
+| RELEASED | Tag/release creado en GitHub. | Release notes y versión publicados. |
+
+## 6. Cadencia recomendada
+| Ritual | Frecuencia | Resultado esperado |
+| --- | --- | --- |
+| Commit de stage | Cada stage cerrado | Commit descriptivo y docs actualizadas. |
+| Replit validation | Cada bloque funcional | doctor:node + typecheck + reporte de estado. |
+| Supabase QA | Cada cambio backend | SQL, policies, seed y prueba real. |
+| Mobile QA | Cada cambio UX crítico | Expo Go/teléfono con captura o notes. |
+| Release tag | Solo hitos estables | v0.x.y con GitHub Action release. |
+
+## 7. Hoja de ruta macro
+| Stage | Nombre | Objetivo | Salida esperada |
+| --- | --- | --- | --- |
+| R2C | GitHub/Replit sync + releases | Asegurar que Replit puede commitear, pushear y preparar releases por tag. | Release workflow, docs sync, push validado. |
+| 1A | Supabase core | Auth real, places reales y chat público realtime por lugar. | Usuario registra/login, ve lugares, envía/recibe mensajes por place_id. |
+| 1B | Look & feel Aldea/NomadTable-style | Sistema visual mobile-first con cards, chips, mapa/lista, actividad social. | UI coherente, brand propio, preview web/mobile. |
+| 1C | Mobile preview + QA | Expo Go/tunnel y QA en teléfono. | QR funcional, flujo principal probado en dispositivo. |
+| 2A | Grupos reales por lugar | Crear/unirse/listar grupos locales. | local_groups + group_members + UI real. |
+| 2B | Eventos reales desde lugar/chat | Crear eventos desde lugar o mensaje. | local_events + event_attendees + CTA “crear desde chat”. |
+| 3A | Seguridad y moderación | Reportes, bloqueos, visibility, safety mode. | RLS, UI de report/block, ocultar bloqueados. |
+| 3B | Geofencing y presencia | Acceso contextual por cercanía sin exponer coordenadas exactas. | Reglas de lectura/escritura y presencia agregada. |
+| 4A | Graph-ready Postgres | Guardar edge events y relaciones normalizadas. | graph_edges / social_edges / topic edges listos. |
+| 4B | Graph insights UI v0 | Mostrar conexiones explicables en UI. | “Por qué ves esto”: lugar, tema, grupo, evento. |
+| 5A | Neo4j pilot | Sincronizar relaciones clave a grafo dedicado. | Neo4j/AuraDB + worker + consultas Cypher básicas. |
+| 5B | Recomendaciones graph-based | Personas, grupos, eventos y lugares sugeridos por grafo. | Graph recommendations con explicación. |
+| 6A | NomadTable feature parity adaptada | Discovery, nearby people/activities, perfil, verified, AI suggestions futura. | App comparable en claridad, pero space-first. |
+| 6B | Beta cerrada | Piloto con espacios reales. | Cohorte, métricas, bugs, safety review. |
+| 7A | Producción v1 | App lista para primeras comunidades reales. | Release estable, docs, seguridad, onboarding. |
+
+## 8. Stage R2C — GitHub/Replit sync + release automation
+| Campo | Detalle |
+| --- | --- |
+| Objetivo | Que Replit sea workspace oficial del agente y GitHub la fuente de verdad. |
+| Entregables | docs/GITHUB_REPLIT_SYNC.md, docs/REPLIT_CURRENT_STATUS.md, .github/workflows/release.yml. |
+| Comandos mínimos | git remote -v; git status; npm run doctor:node; npm run typecheck. |
+| Criterios de aceptación | Commit y push desde Replit funcionan; release workflow existe; no se crea tag sin permiso. |
+| Riesgo | Credenciales mal gestionadas. Nunca imprimir tokens ni subir .env. |
+
+## 9. Stage 1A — Supabase Auth + Places + Place Chat Realtime
+Este stage convierte el scaffold en producto usable. Es el primer hito real del MVP.
+| Módulo | Qué se implementa | Criterio de aceptación |
+| --- | --- | --- |
+| Auth | Registro, login, logout, sesión persistente. | Usuario puede entrar y salir sin romper navegación. |
+| Profiles | Profile automático al signup mediante trigger. | profiles contiene row para auth.uid(). |
+| Places | getNearbyPlaces y getPlaceById desde Supabase con fallback mock. | Lista de lugares reales o mocks si faltan env vars. |
+| Chat público | place_messages read/insert por place_id. | Mensaje aparece en el chat correcto. |
+| Realtime | Supabase Realtime para inserts filtrados por place_id. | Dos clientes ven mensajes sin refresh. |
+| RLS | Policies para lectura/escritura segura. | No se puede insertar con user_id ajeno. |
+| Docs | docs/ETAPA_1A_SUPABASE_REALTIME.md. | Setup, SQL y pruebas documentadas. |
+
+## 10. Stage 1B — Look & feel Aldea, inspirado en NomadTable
+Objetivo: lograr una experiencia visual social, cálida y rápida de entender, comparable en intención a NomadTable, pero con identidad propia. No se copian assets, marca, textos ni pantallas exactas.
+| Área UI | Componentes | Resultado esperado |
+| --- | --- | --- |
+| Home / Places | PlaceCard, NearbyPlaceList, MapFallback, ActivityIndicators | El usuario siente que hay lugares vivos cerca. |
+| Place detail | PlaceHero, PlaceStats, CTA Chat/Groups/Events | El lugar es el centro del producto. |
+| Chat | ChatBubble, MessageInput, SafetyNotice, CreateEventFromChatSheet | Conversación pública clara y segura. |
+| Groups | GroupCard, AccessLevelChip, JoinButton | Comunidades locales con niveles de acceso. |
+| Events | EventCard, AttendeePreview, CreateEventCTA | Planes espontáneos nacen del lugar. |
+| Profile | ProfileHeader, VerificationBadge, SafetyModeSelector | Confianza sin sentirse dating app. |
+| Visual system | Tokens: spacing, radius, typography, chips, buttons, shadows | Consistencia de producto. |
+
+## 11. Stage 1C — Mobile preview y QA
+| Prueba | Comando / acción | Resultado esperado |
+| --- | --- | --- |
+| Typecheck | npm run typecheck | Sin errores TypeScript. |
+| Web preview | npm run start:web | UI navegable o fallback documentado. |
+| Expo Go | npm run start:go | QR/tunnel abre app en teléfono. |
+| Device QA | Teléfono físico | Chat, navegación y layout se sienten mobile. |
+| Ubicación futura | Permisos mobile | No exponer coordenadas exactas. |
+
+## 12. Stage 2A — Grupos reales por lugar
+| Función | Detalle | Criterio de aceptación |
+| --- | --- | --- |
+| Crear grupo | name, description, access_level, place_id. | Grupo aparece en Place Groups. |
+| Unirse | group_members con status/role. | Usuario queda miembro activo. |
+| Acceso | public, local_only, approval_required, invite_only. | UI muestra nivel y bloquea según estado. |
+| Chat de grupo | group_messages opcional en este stage o 2A.1. | Mensajes separados del chat público. |
+
+## 13. Stage 2B — Eventos reales desde lugar o chat
+| Función | Detalle | Criterio de aceptación |
+| --- | --- | --- |
+| Crear evento desde lugar | title, description, starts_at, capacity, access_level. | Evento visible en Place Events. |
+| Crear evento desde mensaje | source_message_id y source_type=chat. | CTA en mensaje crea evento vinculado. |
+| Unirse a evento | event_attendees. | Contador y estado going/interested. |
+| Evento-chat | Opcional: chat por evento. | Coordinación posterior al join. |
+
+## 14. Stage 3A — Seguridad, privacidad y moderación
+Este stage es obligatorio antes de beta con usuarios reales. Aldea mezcla ubicación, chat público y encuentros físicos, así que la seguridad no puede ser postergada.
+| Capa | Implementación | Criterio de aceptación |
+| --- | --- | --- |
+| Reportes | safety_reports para mensaje/usuario/lugar/grupo/evento. | Usuario puede reportar y queda audit trail. |
+| Bloqueos | user_blocks + filtros en UI. | Mensajes de usuarios bloqueados no aparecen. |
+| Safety mode | standard, approximate, invisible. | No se muestra presencia individual sin consentimiento. |
+| Moderación básica | moderation_status visible/flagged/hidden. | Contenido oculto no aparece en chats. |
+| RLS | Policies ajustadas a reports/blocks. | Usuarios solo crean reportes propios. |
+
+## 15. Stage 3B — Geofencing, acceso local y presencia
+| Función | Detalle | Criterio de aceptación |
+| --- | --- | --- |
+| Ubicación aproximada | Expo Location / permisos mobile. | El usuario controla permiso y precisión. |
+| Escritura local | Solo escribir si dentro del radio o recently_seen. | Evita invasión remota de chats locales. |
+| Presencia agregada | active_count, recent_count, no coordenadas exactas. | El lugar se ve vivo sin doxxing. |
+| Check-in manual | Permitir “Estoy aquí” sin coordenada pública. | Mejora UX y privacidad. |
+
+## 16. Stage 4A — Graph-ready en Postgres
+Antes de Neo4j, Aldea debe guardar eventos de relación de forma consistente. Esto permite aprender qué relaciones realmente tienen valor.
+| Tabla / entidad | Propósito | Ejemplo |
+| --- | --- | --- |
+| graph_nodes | Normalizar nodos si se decide generalizar. | User, Place, Group, Event, Topic. |
+| graph_edges | Relaciones persistentes consultables. | User VISITED Place, User MEMBER_OF Group. |
+| edge_events | Historial de interacciones para sync futura. | User POSTED_IN Conversation at timestamp. |
+| topic_tags | Temas detectados o elegidos. | japonés, skate, lectura, coworking. |
+| user_topic_affinities | Afinidad calculada simple. | User interesado en japonés por mensajes/eventos. |
+
+## 17. Stage 4B — Graph insights UI v0
+| Insight | Ejemplo UI | Valor |
+| --- | --- | --- |
+| Conexión explicable | “Te sugerimos este grupo porque hablaste de japonés en Parque Kennedy.” | Confianza y transparencia. |
+| Lugar vivo | “Temas activos: mascotas, lectura, skate.” | Identidad social del espacio. |
+| Evento sugerido | “3 personas están hablando de café freelance aquí.” | Conversación → acción. |
+| Mapa de relaciones | Vista simple de nodos: lugar, temas, grupos. | Primer paso visual hacia app de grafos. |
+
+## 18. Stage 5A — Neo4j pilot
+Neo4j entra cuando el grafo relacional empieza a quedarse corto para consultas profundas, recomendaciones explicables o visualización de relaciones. Neo4j modela datos como nodos, relaciones y propiedades, lo que encaja con usuarios, lugares, temas, grupos y eventos.
+| Paso | Implementación | Criterio de aceptación |
+| --- | --- | --- |
+| Neo4j/AuraDB setup | Crear instancia y variables seguras. | No exponer credenciales; backend-only. |
+| Edge sync worker | Procesar edge_events hacia Neo4j. | Relaciones clave sincronizadas. |
+| Cypher queries | Consultas para afinidad y recomendaciones. | Respuestas útiles y explicables. |
+| Graph health | Conteo nodos/edges, fallos de sync. | Observabilidad básica. |
+
+## 19. Stage 5B — Recomendaciones basadas en grafo
+| Recomendación | Señales | Criterio de aceptación |
+| --- | --- | --- |
+| Grupos sugeridos | Lugar visitado + temas + eventos asistidos. | Usuario recibe 3-5 sugerencias relevantes. |
+| Eventos sugeridos | Interés temático + lugar cercano + grupo. | Explicación visible. |
+| Personas a conocer | Coincidencia de lugares/temas/grupos sin dating. | Consentimiento y safety guardrails. |
+| Lugares sugeridos | Intereses + actividad de comunidad. | Descubrimiento geográfico. |
+
+## 20. Stage 6A — Paridad funcional adaptada a NomadTable-style
+| Área | Paridad deseada | Versión Aldea |
+| --- | --- | --- |
+| Nearby social discovery | Ver gente/planes cerca. | Ver lugares vivos, personas agregadas y actividades del lugar. |
+| Join/create activities | Actividades inmediatas. | Eventos espontáneos desde lugar/chat. |
+| Group chats | Chats de viaje/actividad. | Chat público por lugar + chats de grupo/evento. |
+| Future planning | Viajes futuros. | Planes recurrentes por lugar y comunidades locales. |
+| Verification/safety | Conexiones seguras. | Safety mode, reportes, bloques, perfiles verificados. |
+| AI suggestions | Sugerencias de actividades. | Futuro: sugerencias desde temas/lugar/grafo. |
+
+## 21. Stage 6B — Beta cerrada
+| Área | Acción | Meta |
+| --- | --- | --- |
+| Piloto geográfico | Seleccionar 2-3 lugares. | Evitar chats vacíos y concentrar comunidad. |
+| Cohorte | 20-50 usuarios iniciales. | Validar uso real y seguridad. |
+| Métricas | Mensajes/lugar/día, eventos creados, reportes. | Saber si el lugar digital vive. |
+| Moderación | Revisión manual inicial. | Controlar abuso antes de escalar. |
+
+## 22. Stage 7A — Producción v1
+| Bloque | Salida |
+| --- | --- |
+| Mobile release | EAS/dev build o app store readiness. |
+| Backend | Supabase RLS, backups, observabilidad. |
+| Graph | Neo4j o graph-ready según madurez. |
+| Safety | Moderación, reportes, bloqueo, privacy policy. |
+| Growth | Landing, onboarding, comunidades piloto. |
+
+## 23. Modelo de datos evolutivo
+### 23.1 MVP Supabase/Postgres
+- profiles: identidad básica, safety_mode, avatar, bio.
+- places: lugares físicos con lat/lng, radio, tipo y visibilidad.
+- place_messages: chat público del lugar.
+- local_groups y group_members: comunidades dentro de un lugar.
+- local_events y event_attendees: planes nacidos desde lugar/chat.
+- topic_tags y message_topic_tags: semántica inicial.
+- safety_reports y user_blocks: seguridad desde el inicio.
+
+### 23.2 Graph-ready relacional
+- edge_events: stream de relaciones observadas.
+- graph_edges: relaciones agregadas o persistentes.
+- user_place_affinities: peso por visitas, mensajes y eventos.
+- user_topic_affinities: peso por temas hablados o asistidos.
+- place_topic_scores: identidad temática de cada lugar.
+
+### 23.3 Neo4j / grafo dedicado
+Nodos: User, Place, Group, Event, Topic, Conversation, MessageRef. Relaciones: VISITED, POSTED_IN, MEMBER_OF, ATTENDED, HOSTED_AT, MENTIONS, INTERESTED_IN, TRUSTED_BY, BLOCKED, CONNECTED_WITH.
+Ejemplo conceptual:
+User -[:VISITED]-> Place -[:HAS_GROUP]-> Group -[:HAS_EVENT]-> Event -[:MENTIONS]-> Topic
+## 24. Métricas por etapa
+| Etapa | Métrica primaria | Métricas secundarias |
+| --- | --- | --- |
+| 1A | Mensajes por lugar activo | Usuarios registrados, sesiones, errores RLS, latencia realtime. |
+| 2A/2B | Grupos/eventos creados por lugar | Join rate, asistencia, eventos desde chat. |
+| 3A | Ratio de reportes y resolución | Bloqueos, contenido oculto, confianza percibida. |
+| 4/5 | Recomendaciones aceptadas | CTR, explicación útil, diversidad de sugerencias. |
+| 6B | Retención por lugar | DAU/WAU, places activated, mensajes por usuario. |
+
+## 25. Backlog de epics
+| Epic | Descripción | Prioridad |
+| --- | --- | --- |
+| E1 Core Workspace | Replit, GitHub, release workflow, scripts, docs. | P0 |
+| E2 Core Supabase | Auth, profiles, places, messages, realtime, RLS. | P0 |
+| E3 UI/UX | Look & feel Aldea, componentes, responsive, mobile QA. | P0 |
+| E4 Social Objects | Grupos, eventos, chats de grupo/evento. | P1 |
+| E5 Safety | Reportes, bloqueos, moderation_status, safety mode. | P0 antes de beta |
+| E6 Geo | Geofencing, permisos, presencia agregada. | P1 |
+| E7 Graph | Edges, graph insights, Neo4j pilot. | P1/P2 según uso real |
+| E8 Recommendations | Sugerencias por grafo y temas. | P2 |
+| E9 Launch | Beta, métricas, release, onboarding. | P1 |
+
+## 26. Reglas operativas para Replit Agent
+- Siempre correr git status antes y después de cambios.
+- No subir .env, claves, SUPABASE_SERVICE_ROLE_KEY ni secretos.
+- No crear tag release sin instrucción explícita.
+- No usar npm audit fix --force salvo autorización.
+- Mantener fallback mock cuando Supabase no esté configurado.
+- Cada stage debe crear o actualizar su documento en docs/.
+- Cada commit debe corresponder a un stage o bloque lógico.
+- Para mobile: validar Expo Web cuando sea útil, pero no considerar cerrada UX sin Expo Go/teléfono.
+- No convertir la app en web-only.
+
+## 27. Prompts operativos por siguiente etapa
+### 27.1 Prompt corto para R2C
+Actúa como agente senior de Replit/GitHub para ParkChat/Aldea. Valida remote, branch, git status, npm install, doctor:node, typecheck; crea o actualiza GITHUB_REPLIT_SYNC.md, REPLIT_CURRENT_STATUS.md y .github/workflows/release.yml. Haz commit y push. No crear tag todavía. No tocar Supabase salvo docs.
+### 27.2 Prompt corto para 1A
+Actúa como agente senior full-stack mobile para Aldea. Implementa Supabase Auth + Profiles + Places reales + Place Chat realtime con fallback mocks. Revisa schema/policies/seed/profiles-trigger. Valida con npm run doctor:node y npm run typecheck. Documenta en ETAPA_1A_SUPABASE_REALTIME.md. No Neo4j, no matching, no feed global.
+### 27.3 Prompt corto para 1B
+Actúa como product engineer UI/UX para Aldea. Construye un sistema visual mobile-first inspirado en apps de social travel como NomadTable, sin copiar marca/assets. Prioriza Place List, Place Detail, Chat, Groups, Events y Profile. Usa cards, chips, avatar clusters, safety notice y CTA claros. Mantén soporte mobile y web fallback.
+## 28. Riesgos y mitigaciones
+| Riesgo | Impacto | Mitigación |
+| --- | --- | --- |
+| Chats vacíos | La app se siente muerta. | Pilotos concentrados en pocos lugares y eventos semilla. |
+| Acoso/stalking | Alto riesgo de seguridad. | No ubicación exacta, safety mode, report/block, moderación. |
+| Costos realtime | Escala cara o lenta. | Canales por place_id, paginación, límites, caching. |
+| Grafo prematuro | Complejidad sin valor. | Postgres graph-ready primero; Neo4j solo con actividad suficiente. |
+| UI demasiado clon | Riesgo legal/marca. | Inspiración de patrones, identidad propia, no assets ni copy exacto. |
+| Replit vs mobile real | Preview falso positivo. | Expo Go/teléfono para QA mobile y ubicación. |
+
+## 29. Definición de “app funcional de grafos”
+Aldea se considera app funcional de grafos cuando cumple estos puntos:
+- Las acciones sociales generan relaciones persistentes: usuario-lugar, usuario-tema, usuario-grupo, usuario-evento, lugar-tema.
+- La UI muestra conexiones explicables, no solo listas cronológicas.
+- Las recomendaciones usan relaciones, no solo filtros simples.
+- Existe un backend de grafo dedicado o una capa graph-ready robusta en Postgres.
+- El usuario puede entender por qué se le sugiere una persona, grupo, evento o lugar.
+- El sistema mantiene guardrails de seguridad para no convertir el grafo en herramienta de stalking.
+
+## 30. Próximo bloque recomendado
+El siguiente bloque recomendado es cerrar R2C si todavía no está validado en Replit/GitHub. Inmediatamente después, ejecutar 1A con Supabase real o con fallback mock documentado. El primer hito de producto no es el grafo completo: es que dos usuarios puedan entrar al mismo lugar y conversar en realtime con seguridad básica.
+## 31. Fuentes consultadas
+- NomadTable official website: https://nomadtable.app/
+- NomadTable Google Play listing: https://play.google.com/store/apps/details?id=jayraavi.SoloMatch
+- NomadTable App Store listing: https://apps.apple.com/us/app/nomadtable-travel-friends/id6736921913
+- Expo Router documentation: https://docs.expo.dev/router/introduction/
+- Expo start/tunnel documentation: https://docs.expo.dev/get-started/start-developing/
+- Supabase Realtime documentation: https://supabase.com/docs/guides/realtime
+- Supabase Postgres Changes documentation: https://supabase.com/docs/guides/realtime/postgres-changes
+- Neo4j graph database concepts: https://neo4j.com/docs/getting-started/graph-database/
+

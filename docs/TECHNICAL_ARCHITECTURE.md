@@ -1,5 +1,7 @@
 # Aldea Technical Architecture
 
+> Hoja de ruta del proyecto: ver [ROADMAP.md](./ROADMAP.md).
+
 ## Stack
 
 - Expo + React Native.
