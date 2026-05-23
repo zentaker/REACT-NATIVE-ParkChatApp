@@ -1,0 +1,224 @@
+Actúa como agente senior Supabase/Postgres automation para ParkChat / Aldea.
+
+Quiero que Replit gestione la aplicación de policies/seed/smoke test sin que yo copie SQL manualmente.
+
+Voy a darte la contraseña de base de datos SOLO mediante Replit Secrets, no por chat.
+
+Objetivo:
+Configurar automatización segura para que Replit pueda construir SUPABASE_DB_URL desde secrets y aplicar SQL administrativo.
+
+Secrets disponibles o por crear:
+- SUPABASE_DB_PASSWORD
+- EXPO_PUBLIC_SUPABASE_PROJECT_URL
+- EXPO_PUBLIC_SUPABASE_URL
+- EXPO_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+
+Reglas de seguridad:
+- No me pidas pegar la contraseña en el chat.
+- No imprimas la contraseña.
+- No imprimas connection strings completas.
+- No guardes la contraseña en archivos.
+- No uses prefijo EXPO_PUBLIC para contraseñas o service_role.
+- No uses DB URL en frontend.
+- No commitees secrets.
+- No crees .env con secretos.
+- No expongas SUPABASE_DB_PASSWORD.
+- No expongas SUPABASE_SERVICE_ROLE_KEY.
+
+Tarea 1 — Preparar secrets esperados
+
+Indícame que cree este secret en Replit:
+
+Name:
+SUPABASE_DB_PASSWORD
+
+Value:
+<database password de Supabase>
+
+No continuar hasta que exista.
+
+Tarea 2 — Construir SUPABASE_DB_URL en runtime
+
+Crear script:
+
+scripts/lib/supabase-db-url.mjs
+
+Debe:
+- leer SUPABASE_DB_PASSWORD desde process.env
+- leer project ref desde EXPO_PUBLIC_SUPABASE_PROJECT_URL o EXPO_PUBLIC_SUPABASE_URL
+- construir una connection string de pooler compatible con Supabase
+- URL-encodear la password con encodeURIComponent
+- nunca imprimir la URL completa
+- exportar función getSupabaseDbUrl()
+
+Si no puede inferir host/region del pooler automáticamente:
+- pedir que agregue un secret adicional SUPABASE_DB_URL
+- pero primero intentar con SUPABASE_DB_PASSWORD
+
+Tarea 3 — Doctor seguro
+
+Crear:
+
+scripts/doctor-db-url.mjs
+
+Debe validar:
+- SUPABASE_DB_PASSWORD exists true/false
+- password length solamente
+- EXPO_PUBLIC_SUPABASE_PROJECT_URL o URL válida
+- si puede construir DB URL
+- host sin usuario/password si es seguro
+- confirmar que NO existe EXPO_PUBLIC_SUPABASE_DB_PASSWORD
+- confirmar que NO existe EXPO_PUBLIC_SUPABASE_DB_URL
+
+No imprimir secretos.
+
+Agregar script en package.json:
+
+"supabase:doctor-db": "node scripts/doctor-db-url.mjs"
+
+Tarea 4 — Si construcción automática no es viable
+
+Si no puedes construir la connection string porque falta host/region/pooler:
+- detenerte.
+- pedirme crear SUPABASE_DB_URL como Secret.
+- NO pedirme pegarlo en chat.
+- explicar exactamente dónde pegarlo en Replit Secrets.
+
+Tarea 5 — Crear ejecutor SQL
+
+Instalar pg si falta:
+
+npm install pg
+
+Crear:
+
+scripts/lib/db-admin.mjs
+scripts/apply-supabase-sql.mjs
+
+apply-supabase-sql debe aceptar:
+
+node scripts/apply-supabase-sql.mjs --file supabase/policies.sql
+node scripts/apply-supabase-sql.mjs --file supabase/triggers.sql
+node scripts/apply-supabase-sql.mjs --file supabase/seed.sql
+node scripts/apply-supabase-sql.mjs --all
+
+En --all ejecutar:
+1. supabase/triggers.sql
+2. supabase/policies.sql
+3. supabase/seed.sql
+
+No ejecutar schema.sql por defecto porque las tablas ya existen.
+No hacer DROP.
+No borrar datos.
+
+Agregar scripts:
+
+"supabase:apply:policies": "node scripts/apply-supabase-sql.mjs --file supabase/policies.sql",
+"supabase:apply:triggers": "node scripts/apply-supabase-sql.mjs --file supabase/triggers.sql",
+"supabase:apply:seed": "node scripts/apply-supabase-sql.mjs --file supabase/seed.sql",
+"supabase:apply:all": "node scripts/apply-supabase-sql.mjs --all"
+
+Tarea 6 — Aplicar SQL
+
+Ejecutar:
+
+npm run supabase:doctor-db
+npm run supabase:apply:policies
+npm run supabase:apply:seed
+
+Si hace falta:
+
+npm run supabase:apply:triggers
+
+Si algún SQL falla:
+- reportar error exacto.
+- no esconderlo.
+- proponer fix mínimo.
+
+Tarea 7 — Smoke test
+
+Ejecutar:
+
+npm run qa:smoke
+
+Validar:
+- users QA
+- places
+- groups
+- events
+- place chat
+- reports/blocks
+- RLS malicioso bloqueado
+
+No usar service_role para validar acciones normales; solo para setup.
+
+Tarea 8 — Docs
+
+Crear/actualizar:
+
+docs/SUPABASE_DB_AUTOMATION.md
+docs/ETAPA_1A_SUPABASE_REALTIME_QA.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Documentar:
+- que la password se guarda en Replit Secrets
+- que nunca se imprime
+- qué scripts aplican SQL
+- resultado de policies/seed/smoke
+
+Tarea 9 — Git
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "chore: automate Supabase database QA from Replit"
+
+Si se puede:
+
+git push origin main
+
+No crear tag v0.1.0 todavía.
+
+Entrega final:
+
+## DB Automation — Resultado
+
+### Estado
+- DB password secret:
+- DB URL construida:
+- policies aplicadas:
+- seed aplicado:
+- qa:smoke:
+- release readiness:
+
+### Seguridad
+- secrets impresos:
+- EXPO_PUBLIC_DB_PASSWORD:
+- EXPO_PUBLIC_DB_URL:
+- service_role en frontend:
+
+### Validaciones
+- doctor-db:
+- apply policies:
+- apply seed:
+- qa smoke:
+- typecheck:
+
+### Bloqueadores
+-
+
+### Commit
+-
+
+### Próximo stage
+Si todo pasa:
+Etapa 1D — Release QA y preparación v0.1.0.
