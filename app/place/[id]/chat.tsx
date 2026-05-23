@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -7,9 +7,11 @@ import { ChatMessageBubble } from "../../../components/ChatMessageBubble";
 import { EmptyState } from "../../../components/EmptyState";
 import { LoadingState } from "../../../components/LoadingState";
 import { MessageInput } from "../../../components/MessageInput";
+import { ReportDialog } from "../../../components/ReportDialog";
 import { SafetyNotice } from "../../../components/SafetyNotice";
+import { useBlockedUsers } from "../../../hooks/useBlockedUsers";
 import { UI_COLORS } from "../../../lib/constants";
-import { blockUser, reportContent } from "../../../services/moderation";
+import { blockUser, reportContent, type ReportReason } from "../../../services/moderation";
 import {
   createOptimisticPlaceMessage,
   getPlaceMessages,
@@ -41,6 +43,9 @@ export default function PlaceChatScreen() {
   const placeId = String(id ?? "");
   const [messages, setMessages] = useState<PlaceMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reportTarget, setReportTarget] = useState<PlaceMessage | null>(null);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const { isBlocked, markBlocked } = useBlockedUsers();
   const profileRef = useRef<Profile | null>(null);
   const sentIdsRef = useRef<Set<string>>(new Set());
 
@@ -93,38 +98,82 @@ export default function PlaceChatScreen() {
     [placeId]
   );
 
-  async function handleReport(message: PlaceMessage) {
+  function handleOpenReport(message: PlaceMessage) {
+    setReportTarget(message);
+  }
+
+  async function handleSubmitReport(reason: ReportReason, details: string) {
+    if (!reportTarget) return;
+
+    setIsSubmittingReport(true);
     try {
       await reportContent({
         targetType: "message",
-        targetId: message.id,
-        reason: "unsafe_or_unwanted_content"
+        targetId: reportTarget.id,
+        reason,
+        details: details || null
       });
-      Alert.alert("Reporte enviado", "Gracias. Este reporte queda asociado al contenido, no a tu ubicacion exacta.");
+      setReportTarget(null);
+      Alert.alert("Reporte enviado", "Gracias. Lo revisaremos. Tu identidad no se comparte con la persona reportada.");
     } catch (error) {
       Alert.alert("No se pudo reportar", error instanceof Error ? error.message : "Intentalo otra vez.");
+    } finally {
+      setIsSubmittingReport(false);
     }
   }
 
-  async function handleBlock(message: PlaceMessage) {
+  function handleBlock(message: PlaceMessage) {
     if (!message.userId) {
       Alert.alert("No disponible", "Este mensaje no tiene un usuario asociado para bloquear.");
       return;
     }
 
-    try {
-      await blockUser(message.userId);
-      Alert.alert("Usuario bloqueado", "Los bloqueos se guardan por cuenta y respetan RLS en Supabase.");
-    } catch (error) {
-      Alert.alert("No se pudo bloquear", error instanceof Error ? error.message : "Intentalo otra vez.");
-    }
+    const userId = message.userId;
+    const name = message.profile?.displayName ?? message.profile?.username ?? "esta persona";
+
+    Alert.alert(
+      "Bloquear usuario",
+      `Dejaras de ver mensajes de ${name} en todos los lugares. Puedes deshacer esto desde Perfil > Bloqueos.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Bloquear",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await blockUser(userId);
+              markBlocked(userId);
+              Alert.alert("Usuario bloqueado", "Sus mensajes quedan ocultos al instante.");
+            } catch (error) {
+              Alert.alert("No se pudo bloquear", error instanceof Error ? error.message : "Intentalo otra vez.");
+            }
+          }
+        }
+      ]
+    );
   }
+
+  function handleOpenProfile(message: PlaceMessage) {
+    if (!message.userId) return;
+    router.push({ pathname: "/profile/[id]", params: { id: message.userId } });
+  }
+
+  const visibleMessages = useMemo(
+    () => messages.filter((message) => !isBlocked(message.userId)),
+    [messages, isBlocked]
+  );
+
+  const hiddenCount = messages.length - visibleMessages.length;
 
   return (
     <SafeAreaView edges={["left", "right", "bottom"]} style={styles.screen}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboard}>
         <ScrollView contentContainerStyle={styles.content}>
-          <SafetyNotice message="Escribe pensando en una comunidad local. No compartas datos sensibles ni ubicaciones exactas de otras personas." />
+          <SafetyNotice
+            tone="place"
+            title="Chat de lugar"
+            message="Este es un espacio publico local. No compartas datos sensibles, contactos personales ni ubicaciones exactas. Reporta o bloquea si algo te incomoda."
+          />
 
           {isLoading ? <LoadingState label="Cargando chat" /> : null}
 
@@ -132,9 +181,22 @@ export default function PlaceChatScreen() {
             <EmptyState title="Aun no hay mensajes" description="Este puede ser el primer hilo publico del lugar." />
           ) : null}
 
+          {hiddenCount > 0 ? (
+            <EmptyState
+              title={`${hiddenCount} mensaje${hiddenCount === 1 ? "" : "s"} oculto${hiddenCount === 1 ? "" : "s"}`}
+              description="Provienen de cuentas que bloqueaste. Puedes desbloquearlas desde Perfil > Bloqueos."
+            />
+          ) : null}
+
           <View style={styles.messages}>
-            {messages.map((message) => (
-              <ChatMessageBubble key={message.id} message={message} onBlockUser={handleBlock} onReport={handleReport} />
+            {visibleMessages.map((message) => (
+              <ChatMessageBubble
+                key={message.id}
+                message={message}
+                onBlockUser={handleBlock}
+                onReport={handleOpenReport}
+                onOpenProfile={message.userId ? handleOpenProfile : undefined}
+              />
             ))}
           </View>
         </ScrollView>
@@ -143,6 +205,15 @@ export default function PlaceChatScreen() {
           <MessageInput onSend={handleSend} />
         </View>
       </KeyboardAvoidingView>
+
+      <ReportDialog
+        visible={Boolean(reportTarget)}
+        title="Reportar mensaje"
+        description="Tu reporte se asocia al mensaje, no a tu ubicacion. Elige el motivo que mejor describe lo que viste."
+        submitting={isSubmittingReport}
+        onCancel={() => (isSubmittingReport ? null : setReportTarget(null))}
+        onSubmit={handleSubmitReport}
+      />
     </SafeAreaView>
   );
 }

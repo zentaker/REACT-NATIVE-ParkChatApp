@@ -7,6 +7,7 @@ type ChatMessageBubbleProps = {
   message: PlaceMessage;
   onBlockUser?: (message: PlaceMessage) => void;
   onReport?: (message: PlaceMessage) => void;
+  onOpenProfile?: (message: PlaceMessage) => void;
 };
 
 function formatTime(value: string) {
@@ -16,13 +17,19 @@ function formatTime(value: string) {
   }).format(new Date(value));
 }
 
-export function ChatMessageBubble({ message, onBlockUser, onReport }: ChatMessageBubbleProps) {
+export function ChatMessageBubble({ message, onBlockUser, onReport, onOpenProfile }: ChatMessageBubbleProps) {
   const displayName = message.profile?.displayName ?? message.profile?.username ?? "Vecino local";
 
   return (
     <View style={styles.bubble}>
       <View style={styles.headerRow}>
-        <Text style={styles.name}>{displayName}</Text>
+        {onOpenProfile ? (
+          <Pressable accessibilityRole="button" onPress={() => onOpenProfile(message)} style={styles.nameButton}>
+            <Text style={[styles.name, styles.nameLink]}>{displayName}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.name}>{displayName}</Text>
+        )}
         <Text style={styles.time}>{formatTime(message.createdAt)}</Text>
       </View>
       <Text style={styles.body}>{message.body}</Text>
@@ -67,11 +74,18 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: "space-between"
   },
+  nameButton: {
+    flex: 1
+  },
   name: {
     color: UI_COLORS.text,
     flex: 1,
     fontSize: 14,
     fontWeight: "700"
+  },
+  nameLink: {
+    color: UI_COLORS.primary,
+    textDecorationLine: "underline"
   },
   time: {
     color: UI_COLORS.textMuted,

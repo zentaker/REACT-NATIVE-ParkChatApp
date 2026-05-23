@@ -41,16 +41,29 @@ export default function EventDetailScreen() {
     };
   }, [eventId]);
 
-  async function handleJoin() {
-    setIsJoining(true);
-    try {
-      await joinEvent(eventId);
-      Alert.alert("Asistencia registrada", "Tu RSVP se guardo o quedo simulado en modo mock.");
-    } catch (error) {
-      Alert.alert("No se pudo registrar", error instanceof Error ? error.message : "Intentalo otra vez.");
-    } finally {
-      setIsJoining(false);
-    }
+  function handleJoin() {
+    Alert.alert(
+      "Confirmar asistencia",
+      "Los encuentros presenciales pueden ser publicos. Verifica el lugar, el horario y mantente con tu grupo. Aldea no comparte tu ubicacion exacta.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Asistire",
+          style: "default",
+          onPress: async () => {
+            setIsJoining(true);
+            try {
+              await joinEvent(eventId);
+              Alert.alert("Asistencia registrada", "Tu RSVP se guardo o quedo simulado en modo mock.");
+            } catch (error) {
+              Alert.alert("No se pudo registrar", error instanceof Error ? error.message : "Intentalo otra vez.");
+            } finally {
+              setIsJoining(false);
+            }
+          }
+        }
+      ]
+    );
   }
 
   return (
@@ -63,7 +76,11 @@ export default function EventDetailScreen() {
         {event ? (
           <>
             <EventCard event={event} />
-            <SafetyNotice message="Antes de asistir, revisa reglas, horario, cupos y punto de encuentro general. Evita compartir ubicacion exacta." />
+            <SafetyNotice
+              tone="event"
+              title="Antes de confirmar tu RSVP"
+              message="Revisa reglas, horario, cupos y punto de encuentro general. Avisa a alguien de confianza. Evita compartir ubicacion exacta o contacto directo en el chat publico."
+            />
 
             <View style={styles.detailCard}>
               <Text style={styles.sectionTitle}>Detalle</Text>

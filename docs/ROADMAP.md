@@ -158,13 +158,13 @@ Cada etapa tiene objetivo, alcance, entregables, criterios de aceptación, depen
 
 **Entregables**:
 
-1. Acción "reportar mensaje" desde `ChatMessageBubble` con motivos predefinidos.
-2. Acción "reportar usuario" y "bloquear usuario" desde perfil ajeno.
-3. Filtro efectivo en cliente de mensajes/usuarios bloqueados (además del filtro RLS).
-4. Pantalla `mis bloqueos` con opción de desbloquear.
-5. `SafetyNotice` contextual en chat de lugar y en flujo de evento presencial.
-6. Documento `docs/SAFETY.md` con políticas mínimas (qué se reporta, qué pasa después).
-7. Rate limit básico por usuario en envío de mensajes (cliente + verificación servidor a futuro).
+1. Acción "reportar mensaje" desde `ChatMessageBubble` con motivos predefinidos. ✅
+2. Acción "reportar usuario" y "bloquear usuario" desde perfil ajeno (`/profile/[id]`). ✅
+3. Filtro efectivo en cliente de mensajes/usuarios bloqueados (además del filtro RLS). ✅
+4. Pantalla `mis bloqueos` (`/blocks`) con opción de desbloquear. ✅
+5. `SafetyNotice` contextual en chat de lugar y en flujo de evento presencial (con confirmación previa al RSVP). ✅
+6. Documento `docs/SAFETY.md` con políticas mínimas (qué se reporta, qué pasa después). ✅
+7. Rate limit básico por usuario en envío de mensajes (cliente + verificación servidor a futuro). ⏳ pendiente.
 
 **Criterios de aceptación**:
 

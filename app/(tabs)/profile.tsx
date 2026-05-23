@@ -84,8 +84,12 @@ export default function ProfileScreen() {
           <Pressable accessibilityRole="button" style={styles.secondaryButton}>
             <Text style={styles.secondaryText}>Editar perfil</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" style={styles.secondaryButton}>
-            <Text style={styles.secondaryText}>Bloqueos y reportes</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/blocks")}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryText}>Mis bloqueos</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"

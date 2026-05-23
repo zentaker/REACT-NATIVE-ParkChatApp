@@ -27,6 +27,8 @@ export default function RootLayout() {
           <Stack.Screen name="place/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="group/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="profile/[id]" options={{ headerShown: true, title: "Perfil" }} />
+          <Stack.Screen name="blocks" options={{ headerShown: true, title: "Mis bloqueos" }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

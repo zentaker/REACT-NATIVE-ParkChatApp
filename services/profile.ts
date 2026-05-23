@@ -34,6 +34,23 @@ function mockCurrentProfile() {
   return mockProfiles.find((profile) => profile.id === MOCK_USER_ID) ?? mockProfiles[0] ?? null;
 }
 
+export async function getProfileById(userId: string): Promise<Profile | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    return mockProfiles.find((profile) => profile.id === userId) ?? null;
+  }
+
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+
+  if (error) {
+    console.warn("Could not load profile by id:", error.message);
+    return null;
+  }
+
+  if (!data) return null;
+
+  return mapProfileRow(data as ProfileRow);
+}
+
 export async function getCurrentProfile(): Promise<Profile | null> {
   if (!isSupabaseConfigured || !supabase) {
     return mockCurrentProfile();
