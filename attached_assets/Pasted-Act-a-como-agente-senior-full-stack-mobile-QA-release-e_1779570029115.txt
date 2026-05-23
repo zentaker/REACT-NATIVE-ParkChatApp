@@ -1,0 +1,443 @@
+Actúa como agente senior full-stack mobile QA/release engineer para ParkChat / Aldea.
+
+Stage:
+Etapa 1D — Release QA y preparación v0.1.0
+
+Contexto:
+ParkChat / Aldea ya está conectado a Supabase real.
+
+Estado confirmado:
+- DB automation completado.
+- SUPABASE_DB_PASSWORD existe en Replit Secrets.
+- SUPABASE_ACCESS_TOKEN existe en Replit Secrets.
+- Supabase Management API funciona como workaround estable.
+- Policies aplicadas: 33 policies RLS en 9 tablas.
+- Triggers aplicados: handle_new_user + set_updated_at.
+- Seed aplicado: 4 places, 5 groups, 4 events.
+- qa:smoke pasó 23/23.
+- typecheck pasó con 0 errores.
+- doctor:node OK.
+- supabase:doctor-db OK.
+- supabase:apply:policies OK.
+- supabase:apply:triggers OK.
+- supabase:apply:seed OK.
+- No hay bloqueadores backend.
+- El sistema de checkpoints de Replit hizo el guardado automático; git directo puede estar bloqueado para el main agent.
+
+Bugs corregidos previamente:
+- services/moderation.ts usa message_id / reported_user_id.
+- services/moderation.ts usa role = 'moderator'.
+- services/groups.ts usa access_level.
+- scripts/lib/supabase-admin.mjs usa JWT vía global.headers.Authorization.
+- supabase/seed.sql y supabase/policies.sql alineados al schema real.
+
+Objetivo:
+Preparar ParkChat / Aldea para v0.1.0 validando la experiencia real del MVP:
+
+1. Realtime en browser con dos pestañas.
+2. Geofencing/location permission y fallback web.
+3. Moderación end-to-end.
+4. Grupos y eventos end-to-end desde UI.
+5. Release QA visual.
+6. Documentación final.
+7. Checklist de release v0.1.0.
+
+No objetivos:
+- No agregar Neo4j todavía.
+- No agregar matching.
+- No agregar feed global.
+- No agregar IA.
+- No rediseñar toda la UI.
+- No hacer refactor grande.
+- No cambiar schema salvo bug crítico.
+- No desactivar RLS.
+- No exponer secrets.
+- No crear tag v0.1.0 sin aprobación explícita del usuario.
+- No hacer features post-MVP.
+
+Tarea 1 — Validaciones base
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+
+Confirmar:
+- doctor:node OK.
+- supabase:doctor-db OK.
+- typecheck 0 errores.
+- qa:smoke 23/23 PASS.
+- no secrets impresos.
+- app no usa mocks.
+- RLS activo.
+
+Si algo falla:
+- detener release QA.
+- documentar error exacto.
+- proponer fix mínimo.
+
+Tarea 2 — Realtime browser QA
+
+Validar realtime manualmente con dos pestañas o dos sesiones del preview web.
+
+Flujo:
+1. Abrir pestaña A.
+2. Login usuario QA A.
+3. Entrar a Parque Kennedy.
+4. Abrir chat del lugar.
+5. Abrir pestaña B/incognito/segunda sesión.
+6. Login usuario QA B.
+7. Entrar al mismo lugar.
+8. Usuario A envía mensaje.
+9. Usuario B debe verlo sin refresh.
+10. Usuario B responde.
+11. Usuario A debe verlo sin refresh.
+12. Validar que no hay duplicados.
+13. Validar que el orden de mensajes es correcto.
+14. Validar que errores de conexión se muestran de forma clara.
+
+Si realtime falla:
+- revisar channel de Supabase.
+- revisar filtros por place_id.
+- revisar publication realtime.
+- revisar replica identity.
+- documentar error exacto.
+- aplicar fix mínimo.
+
+Tarea 3 — Geofencing/location QA
+
+Validar permisos y fallback de location.
+
+Revisar código relacionado:
+- location service
+- geofencing helper
+- place radius
+- web fallback
+- mobile fallback
+- mensajes de seguridad
+
+Validar en web:
+- si browser bloquea location, la app no debe romperse.
+- debe mostrar fallback usable.
+- debe permitir ver lugares seed.
+- no debe mostrar coordenada exacta del usuario.
+- debe mostrar SafetyNotice si corresponde.
+
+Validar lógica:
+- distance/radius si existe.
+- canPost / local presence si existe.
+- comportamiento cuando no hay permisos.
+- comportamiento cuando hay permisos.
+
+Si la lógica todavía no está implementada:
+- documentarlo como pendiente post-v0.1.0 o crear implementación mínima si el MVP lo necesita.
+- no bloquear release si el producto ya permite operar con fallback.
+
+Tarea 4 — Grupos end-to-end desde UI
+
+Validar desde preview web con usuarios QA:
+
+1. Crear grupo público.
+2. Editar grupo.
+3. Join grupo público.
+4. Leave grupo.
+5. Crear grupo con access_level approval_required.
+6. Usuario B solicita ingreso.
+7. Usuario owner aprueba usuario B.
+8. Ver miembros del grupo.
+9. Validar "Mis grupos".
+10. Validar errores de RLS o UI.
+
+Confirmar:
+- access_level se usa correctamente.
+- no aparece visibility antiguo.
+- group_members status pending/active funciona.
+- owner policies funcionan.
+
+Tarea 5 — Eventos end-to-end desde UI
+
+Validar:
+
+1. Crear evento.
+2. Editar evento.
+3. Borrar evento.
+4. RSVP going.
+5. RSVP interested.
+6. RSVP cancelled.
+7. Validar "Mis eventos".
+8. Validar selector de fecha/hora en web.
+9. Validar que no se rompe en mobile/web.
+10. Validar empty states.
+
+Confirmar:
+- event_rsvps funciona.
+- no hay duplicados por usuario/evento.
+- estados se guardan correctamente.
+
+Tarea 6 — Moderación end-to-end
+
+Validar:
+
+1. Usuario A reporta mensaje.
+2. Usuario A reporta usuario.
+3. Usuario A bloquea usuario B.
+4. "Mis bloqueos" muestra el bloqueo.
+5. Mensajes de usuario bloqueado se filtran client-side.
+6. SafetyNotice aparece donde corresponde.
+7. Moderation inbox carga para usuario moderator.
+8. Moderation inbox NO carga para usuario normal.
+9. Reports tienen message_id / reported_user_id correctos.
+10. isCurrentUserModerator usa role = 'moderator'.
+
+Si no existe usuario moderator:
+- usar script QA/admin para asignar role = 'moderator' a un usuario QA.
+- documentar el paso.
+- no usar service_role desde frontend.
+
+Tarea 7 — Rate limit QA
+
+Validar rate limit de chat de lugar.
+
+Flujo:
+1. Usuario QA envía mensajes repetidos o rápidos según umbral.
+2. Confirmar que el sistema limita cuando corresponde.
+3. Confirmar que el error es entendible.
+4. Confirmar que no rompe realtime.
+5. Confirmar que no bloquea mensajes normales.
+
+Si el rate limit depende de trigger:
+- validar que trigger está activo.
+- documentar umbral real.
+
+Tarea 8 — Visual QA / Release polish
+
+Revisar pantallas principales:
+
+- Login.
+- Register.
+- Tabs: Mapa/Lugares/Chats/Perfil.
+- Lista de lugares.
+- Detalle de lugar.
+- Chat de lugar.
+- Grupos.
+- Eventos.
+- Mis grupos.
+- Mis eventos.
+- Members approval.
+- Reports.
+- Blocks.
+- Moderation inbox.
+
+Validar:
+- no pantalla blanca.
+- no textos falsos de "sin credenciales".
+- no warnings visibles de mocks.
+- loading states.
+- empty states.
+- error states.
+- navegación back.
+- botones deshabilitados cuando corresponde.
+- layout mobile en web preview.
+- no overflow crítico.
+- look & feel consistente con dirección NomadTable-inspired / space-first.
+
+No rediseñar todo.
+Solo aplicar polish crítico si hay bugs visibles.
+
+Tarea 9 — Security and secrets audit
+
+Buscar posibles filtraciones:
+
+grep -R "SUPABASE_SERVICE_ROLE_KEY" -n . --exclude-dir=node_modules --exclude-dir=.git
+grep -R "SUPABASE_DB_PASSWORD" -n . --exclude-dir=node_modules --exclude-dir=.git
+grep -R "SUPABASE_ACCESS_TOKEN" -n . --exclude-dir=node_modules --exclude-dir=.git
+grep -R "service_role" -n app components services lib --exclude-dir=node_modules --exclude-dir=.git || true
+
+Confirmar:
+- service_role solo aparece en scripts server-only o docs de seguridad.
+- DB password no está en código.
+- access token no está en código.
+- no .env versionado.
+- no secrets impresos en logs.
+- no EXPO_PUBLIC_SERVICE_ROLE.
+- no EXPO_PUBLIC_DB_PASSWORD.
+- no EXPO_PUBLIC_DB_URL.
+
+Si hay exposición:
+- detener release.
+- corregir inmediatamente.
+- documentar.
+
+Tarea 10 — Documentación release
+
+Crear o actualizar:
+
+docs/ETAPA_1D_RELEASE_QA.md
+
+Debe incluir:
+- estado general.
+- resultados de qa:smoke.
+- realtime browser.
+- geofencing/location.
+- grupos.
+- eventos.
+- moderación.
+- rate limit.
+- visual QA.
+- security/secrets audit.
+- bugs encontrados.
+- fixes aplicados.
+- release readiness.
+- go/no-go v0.1.0.
+
+Actualizar también:
+- docs/REPLIT_CURRENT_STATUS.md
+- docs/ROADMAP.md
+- docs/SMOKE_TEST.md
+- docs/RLS_CHECKLIST.md
+- docs/SUPABASE_DB_AUTOMATION.md
+- README.md si corresponde
+
+Tarea 11 — Release candidate checklist
+
+Crear:
+
+docs/RELEASE_V0_1_0_CHECKLIST.md
+
+Debe incluir:
+
+# Release v0.1.0 Checklist
+
+Secciones:
+1. Backend Supabase.
+2. RLS.
+3. Auth.
+4. Places.
+5. Chat realtime.
+6. Groups.
+7. Events.
+8. Reports/blocks.
+9. Moderation.
+10. Geofencing/location.
+11. Web preview.
+12. Expo Go/mobile pending.
+13. Secrets audit.
+14. Known limitations.
+15. Go/no-go.
+
+Marcar cada item:
+- PASS
+- FAIL
+- BLOCKED
+- DEFERRED
+
+Tarea 12 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+
+Si existen scripts relevantes:
+- npm run lint
+- npm run test
+
+No fallar si lint/test no existen; documentar.
+
+Tarea 13 — Git/checkpoint
+
+Ejecutar:
+
+git status --short
+git log --oneline -10
+
+Si git directo está bloqueado por Replit main agent:
+- documentar que los cambios están en checkpoint automático.
+- indicar al usuario si debe hacer Tools → Git → Commit/Push.
+- no inventar que hizo push si no pudo.
+
+Si git funciona:
+git add .
+git commit -m "test: complete release QA for v0.1.0 candidate"
+git push origin main
+
+No crear tag v0.1.0 todavía.
+
+Criterios de aceptación:
+
+Etapa 1D queda completa si:
+
+1. qa:smoke sigue 23/23 PASS.
+2. realtime browser fue validado o queda bloqueado con razón exacta.
+3. geofencing/location fallback fue validado.
+4. grupos funcionan desde UI.
+5. eventos funcionan desde UI.
+6. reportes/bloqueos funcionan desde UI.
+7. moderation inbox funciona o queda bloqueado con razón exacta.
+8. rate limit fue validado.
+9. visual QA no tiene bugs críticos.
+10. secrets audit no encuentra exposición.
+11. typecheck pasa.
+12. docs/ETAPA_1D_RELEASE_QA.md existe.
+13. docs/RELEASE_V0_1_0_CHECKLIST.md existe.
+14. release readiness queda como GO o NO-GO con motivos claros.
+15. No se creó tag v0.1.0 sin aprobación del usuario.
+
+Entrega final esperada:
+
+## Etapa 1D — Release QA Resultado
+
+### Estado general
+- Release readiness:
+- v0.1.0:
+- Supabase:
+- qa:smoke:
+- Realtime browser:
+- Geofencing:
+- Groups:
+- Events:
+- Reports/blocks:
+- Moderation:
+- Rate limit:
+- Visual QA:
+- Secrets audit:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- typecheck:
+- qa:smoke:
+- lint/test:
+- preview web:
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Known limitations
+-
+
+### Git/checkpoint
+-
+
+### Próximo stage
+Si release readiness = GO:
+Etapa 1E — crear tag v0.1.0 y verificar GitHub Release.
+
+Si release readiness = NO-GO:
+Etapa 1D-Fix — resolver bloqueadores críticos antes del tag.

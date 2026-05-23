@@ -78,6 +78,26 @@ Verificado contra `app/`, `services/`, `supabase/`, `package.json`, `STAGE_0_COM
 ### Etapa 1A — Cierre (hecho)
 
 - Realtime de `place_messages` publicado vía `supabase/schema.sql` (bloque idempotente que lo agrega a `supabase_realtime` si la publicación existe).
+
+### Etapa 1D — Release QA y preparación v0.1.0 (hecho — 23-may-2026)
+
+- **qa:smoke 23/23 PASS** — auth, places, chat, reports, blocks, groups, events, RLS.
+- **DB automation completo** — 33 RLS policies, triggers, seed via Management API (IPv6 workaround estable).
+- **Schema drift corregido** — `services/moderation.ts` (message_id/reported_user_id, role=moderator), `services/groups.ts` (access_level), seed y policies alineados al schema real.
+- **Bug crítico resuelto** — `createUserClient()` en scripts usa `global.headers.Authorization` (no `setSession()` asíncrono).
+- **Moderation E2E** — inbox, reports, blocks, SafetyNotice. QA_UserA elevado a moderator.
+- **Realtime** — canal `place-messages:{placeId}`, filter `place_id=eq.{placeId}`, publicación confirmada en DB. Deduplicación vía sentIdsRef.
+- **Rate limit doble capa** — cliente (5 msgs/60s) + trigger servidor (`place_messages_rate_limit BEFORE INSERT`).
+- **Geofencing DEFERRED** — `radius_meters` presente en schema; lógica de proximidad planificada para Etapa 2.
+- **Security audit** — sin exposición de secrets en código app. Finding medium documentado: `service_role` key en `.replit` `[userenv.shared]` (mecanismo Replit Secrets).
+- **Docs creados** — `ETAPA_1D_RELEASE_QA.md`, `RELEASE_V0_1_0_CHECKLIST.md`, `SUPABASE_DB_AUTOMATION.md`.
+- **Release readiness: GO** — pendiente aprobación de usuario para tag `v0.1.0`.
+
+### Etapa 1E — Pendiente aprobación usuario
+
+- Crear tag `v0.1.0`.
+- GitHub Release con release notes.
+- Cleanup de mensajes de QA en DB (opcional).
 - Eco optimista en `app/place/[id]/chat.tsx` con dedupe entre el mensaje local y el evento de Postgres Changes (ver `services/messages.ts#createOptimisticPlaceMessage`).
 - Sign-up deja perfil creado por trigger `handle_new_user` + fallback en `services/auth.ts` (`upsert` post sign-up).
 - Smoke test reproducible documentado en `docs/SMOKE_TEST.md`.
