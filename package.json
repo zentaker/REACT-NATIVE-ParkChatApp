@@ -7,7 +7,9 @@
   "scripts": {
     "start": "expo start",
     "start:web": "expo start --web --port 5000",
-    "start:go": "expo start --tunnel --go",
+    "start:web:clear": "expo start --web --port 5000 --clear",
+    "start:go": "expo start --tunnel",
+    "start:go:clear": "expo start --tunnel --clear",
     "start:clear": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
