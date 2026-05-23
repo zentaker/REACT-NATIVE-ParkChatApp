@@ -1,0 +1,505 @@
+Actúa como agente senior de desarrollo, Git/GitHub release engineering y ML runtime para el proyecto Shadowlia.
+
+Contexto:
+Este proyecto ya está levantado en Replit y sincronizado con GitHub. El código que está en GitHub es la fuente de verdad del proyecto.
+
+Shadowlia es un proyecto Python para generación de audio usando AudioCraft/MusicGen.
+
+Estado previo conocido:
+- Stage 0: scaffold técnico implementado.
+- Stage 1: runtime reproducible documentado.
+- Stage 1B/1C/1D: bloqueados para audio real porque el entorno local no tenía Python 3.9, ffmpeg, torch/audiocraft ni GPU.
+- R1: preparación para Replit completada.
+- R2: importación bloqueada localmente por falta de remoto/sesión Replit.
+- Ahora el proyecto ya está en Replit y GitHub.
+
+Objetivo de esta etapa:
+Continuar el proyecto desde Replit sin rehacer trabajo anterior.
+
+Prioridades:
+1. Validar sincronización Replit ↔ GitHub.
+2. Validar workspace Replit con diagnósticos livianos.
+3. Configurar o revisar workflow de releases.
+4. Evaluar si Replit puede servir como runtime ML mínimo.
+5. Si Replit NO puede ejecutar MusicGen, documentar el bloqueo y mantener Colab/GPU como ruta oficial.
+6. Si Replit SÍ puede ejecutar MusicGen, generar outputs/smoke.wav con facebook/musicgen-small.
+7. No avanzar a pruebas de control musical hasta tener smoke.wav real.
+
+No objetivos:
+- No crear UI.
+- No crear API server.
+- No crear web app.
+- No hacer fine-tuning.
+- No entrenar modelos.
+- No cambiar el modelo principal sin justificación.
+- No usar modelos grandes.
+- No borrar scripts existentes.
+- No borrar documentación previa.
+- No subir models/.
+- No subir outputs/.
+- No subir audios.
+- No versionar WAV/MP3/FLAC.
+- No ejecutar Stage 2A si no existe outputs/smoke.wav.
+- No cambiar requirements.txt salvo que haya un fallo reproducible y documentado.
+- No hacer releases sin confirmar primero que el workflow está listo.
+
+Archivos importantes esperados:
+- README.md
+- MUSICGEN_ROADMAP.md
+- requirements.txt
+- environment.yml
+- .replit
+- replit.nix
+- src/
+- scripts/
+- docs/
+- scripts/doctor_runtime.py
+- scripts/doctor_replit.py
+- scripts/smoke_test.py
+- scripts/pack_for_colab.py
+- scripts/pack_for_replit.py
+
+Primera tarea: validar GitHub/Replit.
+
+Ejecuta:
+
+git remote -v
+git branch
+git status
+git log --oneline -10
+
+Confirma:
+- origin apunta al repo correcto de GitHub.
+- La rama principal es main o documenta si es otra.
+- El working tree está limpio o documenta cambios.
+- El historial incluye los commits previos del proyecto.
+
+Si no está configurada la identidad de Git, configurar solo identidad local del repo:
+
+git config user.name "Replit Agent"
+git config user.email "replit-agent@example.com"
+
+No configurar tokens ni credenciales sensibles en texto plano.
+
+Segunda tarea: validar workspace Replit.
+
+Ejecuta:
+
+python --version
+which python
+python scripts/doctor_replit.py
+python scripts/doctor_runtime.py
+python -m compileall src scripts
+python scripts/pack_for_colab.py
+
+Interpretación:
+- doctor_replit.py debe correr.
+- doctor_runtime.py puede reportar bloqueadores ML.
+- compileall debe pasar.
+- pack_for_colab.py debe generar bundle limpio si el entorno lo permite.
+- No ejecutar todavía scripts/smoke_test.py.
+
+Tercera tarea: crear o revisar documentación de estado Replit.
+
+Crear o actualizar:
+
+docs/REPLIT_CURRENT_STATUS.md
+
+Debe incluir:
+
+# Replit Current Status
+
+Secciones:
+1. Fecha de validación.
+2. Repo GitHub conectado.
+3. Rama activa.
+4. Últimos commits.
+5. Resultado de python --version.
+6. Resultado de doctor_replit.py.
+7. Resultado de doctor_runtime.py.
+8. Resultado de compileall.
+9. Resultado de pack_for_colab.py.
+10. Estado de .replit.
+11. Estado de replit.nix.
+12. Qué funciona en Replit.
+13. Qué no está validado todavía.
+14. Si Replit está listo solo como workspace o también como runtime ML.
+15. Próximo paso recomendado.
+
+Debe decir claramente si Replit está validado como:
+- workspace cloud
+- runtime ML
+- ambos
+- ninguno
+
+Cuarta tarea: revisar flujo GitHub/Replit.
+
+Si no existe, crear:
+
+docs/GITHUB_REPLIT_SYNC.md
+
+Debe incluir:
+
+# GitHub/Replit Sync
+
+Secciones:
+1. GitHub como fuente de verdad.
+2. Replit como workspace del agente.
+3. Cómo validar remote.
+4. Cómo hacer commit desde Replit.
+5. Cómo hacer push.
+6. Cómo crear tag de release.
+7. Qué no versionar.
+8. Qué hacer si hay conflictos.
+9. Qué hacer si push falla.
+10. Qué hacer si release falla.
+
+Comandos mínimos:
+
+git status
+git add .
+git commit -m "..."
+git push origin main
+
+Release por tag:
+
+git tag v0.1.0
+git push origin v0.1.0
+
+Quinta tarea: preparar release automation.
+
+Revisar si existe:
+
+.github/workflows/release.yml
+
+Si no existe, crearlo.
+
+Contenido esperado:
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create source bundle
+        run: |
+          mkdir -p dist
+          zip -r dist/shadowlia_source_bundle.zip . \
+            -x ".git/*" \
+            -x "dist/*" \
+            -x "models/*" \
+            -x "outputs/*" \
+            -x "*.wav" \
+            -x "*.mp3" \
+            -x "*.flac" \
+            -x ".env" \
+            -x ".env.*" \
+            -x "__pycache__/*" \
+            -x ".venv/*" \
+            -x ".cache/*" \
+            -x ".pytest_cache/*" \
+            -x ".ipynb_checkpoints/*"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/shadowlia_source_bundle.zip \
+            --title "Shadowlia ${GITHUB_REF_NAME}" \
+            --generate-notes
+
+No crear tag todavía salvo que el usuario lo pida explícitamente.
+
+Sexta tarea: evaluar runtime ML mínimo en Replit.
+
+Crear o actualizar:
+
+docs/REPLIT_RUNTIME_EVALUATION.md
+
+Ejecutar diagnósticos, sin descargar modelos todavía:
+
+python --version
+which python
+ffmpeg -version
+python -c "import sys; print(sys.version)"
+python -c "import shutil; print('ffmpeg:', shutil.which('ffmpeg'))"
+
+Luego verificar imports sin instalar nada todavía:
+
+python -c "import torch; print(torch.__version__)" 
+python -c "import torchaudio; print(torchaudio.__version__)"
+python -c "import audiocraft; print('audiocraft ok')"
+python -c "import transformers; print(transformers.__version__)"
+
+Si fallan imports, documentar el error exacto.
+
+No instalar dependencias pesadas automáticamente antes de documentar el estado.
+
+Después revisar replit.nix.
+
+Si replit.nix puede mejorar ffmpeg/Python sin romper el workspace, proponer cambios mínimos.
+
+Objetivo de runtime ML:
+- Python 3.9.x preferido para AudioCraft.
+- ffmpeg disponible.
+- torch instalado.
+- torchaudio instalado.
+- audiocraft instalado.
+- transformers instalado.
+- suficiente espacio de disco.
+- idealmente GPU, aunque Replit puede no tenerla.
+
+Si Replit no puede cumplir esto, documentar:
+
+"Replit validado como workspace, no como runtime MusicGen. La generación real debe hacerse en Colab/GPU."
+
+Séptima tarea: instalar runtime ML solo si parece viable.
+
+Solo intentar instalación si:
+- El entorno permite Python compatible.
+- Hay espacio suficiente.
+- replit.nix no está roto.
+- No se compromete el workspace.
+- Se puede documentar todo.
+
+Si se intenta, usar comandos explícitos y documentados.
+
+No cambiar requirements.txt salvo error reproducible.
+
+Si requirements.txt falla por incompatibilidad real, crear:
+
+requirements.replit.txt
+
+solo como fallback documentado.
+
+No reemplazar requirements.txt.
+
+Octava tarea: gate para smoke test.
+
+Solo ejecutar:
+
+python scripts/smoke_test.py
+
+si antes pasa:
+
+python scripts/doctor_runtime.py --strict
+
+Si strict no pasa, NO ejecutar smoke_test.py.
+
+Si strict pasa, ejecutar:
+
+python scripts/smoke_test.py
+
+Debe usar:
+- facebook/musicgen-small
+- duración corta
+- salida outputs/smoke.wav
+
+Después validar:
+
+python -c "from pathlib import Path; p=Path('outputs/smoke.wav'); print(p.exists(), p.stat().st_size if p.exists() else 0)"
+
+Si torchaudio está disponible:
+
+python -c "import torchaudio; wav, sr = torchaudio.load('outputs/smoke.wav'); print(wav.shape, sr)"
+
+Documentar:
+- path
+- tamaño
+- duración si se puede obtener
+- sample rate
+- modelo usado
+- device usado
+- si fue audible
+- tiempo aproximado de generación
+
+No versionar outputs/smoke.wav.
+
+Novena tarea: actualizar roadmap.
+
+Actualizar:
+
+MUSICGEN_ROADMAP.md
+
+Agregar o actualizar etapas:
+
+- R2/R2B: Replit import/workspace.
+- R2C: GitHub/Replit sync + release workflow.
+- R3: Replit runtime ML evaluation.
+- Stage 1E: Colab/GPU real si Replit no sirve como runtime.
+- Stage 2A: generación controlada, solo después de smoke.wav.
+
+Debe quedar claro:
+- Si Replit es solo workspace.
+- Si Replit también puede ser runtime ML.
+- Si smoke.wav sigue pendiente.
+- Si Stage 2A sigue bloqueado.
+
+Décima tarea: actualizar README.
+
+Agregar o actualizar secciones:
+
+## Replit workspace
+
+Incluir:
+- cómo correr doctor_replit.py
+- cómo correr compileall
+- cómo generar bundle Colab
+- advertencia de no correr smoke_test.py hasta que doctor strict pase
+
+## GitHub/Replit workflow
+
+Incluir:
+- GitHub como fuente de verdad
+- Replit como workspace del agente
+- commits desde Replit
+- push a GitHub
+- releases por tags
+
+## Runtime status
+
+Incluir:
+- estado actual de MusicGen
+- si Replit puede o no ejecutar runtime ML
+- si Colab sigue siendo ruta recomendada
+
+Onceava tarea: revisar .gitignore.
+
+Confirmar que ignora:
+
+models/
+outputs/
+dist/
+*.wav
+*.mp3
+*.flac
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+.cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+Confirmar que no se ignoran:
+- src/
+- scripts/
+- docs/
+- README.md
+- MUSICGEN_ROADMAP.md
+- requirements.txt
+- environment.yml
+- replit.nix
+- .replit
+- .github/workflows/release.yml
+
+Doceava tarea: commit y push.
+
+Antes de commit:
+
+git status --short
+
+Confirmar que no aparecen:
+- models/
+- outputs/
+- audios
+- dist/ salvo que se decida no ignorarlo, pero preferiblemente debe estar ignorado
+
+Crear commit:
+
+git add .
+git commit -m "chore: validate Replit workspace and GitHub sync"
+
+Luego:
+
+git push origin main
+
+Si push falla, documentar error exacto y no intentar soluciones inseguras.
+
+No crear tag release todavía salvo que el usuario lo pida.
+
+Criterios de aceptación:
+
+Esta etapa queda completa si:
+
+1. git remote -v apunta al repo correcto.
+2. git status funciona.
+3. doctor_replit.py corre.
+4. doctor_runtime.py corre.
+5. compileall pasa.
+6. pack_for_colab.py corre.
+7. docs/REPLIT_CURRENT_STATUS.md existe.
+8. docs/GITHUB_REPLIT_SYNC.md existe o está actualizado.
+9. .github/workflows/release.yml existe.
+10. README.md está actualizado.
+11. MUSICGEN_ROADMAP.md está actualizado.
+12. Se hizo commit desde Replit.
+13. Se hizo push a GitHub.
+14. No se ejecutó smoke_test.py salvo que doctor strict haya pasado.
+15. No se versionaron models/, outputs/ ni audios.
+
+Entrega final esperada:
+
+Responder con:
+
+## Replit Continuation — Resultado
+
+### Estado
+- Workspace Replit:
+- GitHub sync:
+- Release workflow:
+- Runtime ML Replit:
+- smoke.wav:
+
+### Git
+- remote:
+- branch:
+- último commit:
+- push:
+
+### Validaciones
+- python:
+- doctor_replit:
+- doctor_runtime:
+- compileall:
+- pack_for_colab:
+- doctor strict:
+- smoke test:
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### No se hizo
+-
+
+### Bloqueadores
+-
+
+### Próximo stage
+Si Replit NO puede runtime ML:
+Stage 1E — ejecutar Colab/GPU real hasta obtener outputs/smoke.wav.
+
+Si Replit SÍ puede runtime ML y smoke.wav fue generado:
+Stage 2A — pruebas mínimas de control: prompts, seeds y duración.
+
+Si GitHub sync falló:
+R2D — corregir autenticación Git/Replit/GitHub.
