@@ -1,0 +1,391 @@
+Actúa como agente senior full-stack mobile QA para ParkChat / Aldea.
+
+Stage:
+Etapa 1A-QA Smoke Real — Supabase tables, auth, chat realtime, RLS, grupos/eventos/moderación
+
+Contexto:
+Proyecto: zentaker/REACT-NATIVE-ParkChatApp
+Workspace: Replit
+Branch: main
+Backend: Supabase real
+
+Estado anterior:
+- doctor:node está verde.
+- Supabase URL válida.
+- anon key presente.
+- La app ya no usa mocks.
+- TypeScript pasa con 0 errores.
+- Preview web muestra login real de Supabase.
+- Antes el bloqueo era que las tablas devolvían HTTP 404 porque el SQL no estaba aplicado.
+- El usuario ya aplicó manualmente en Supabase SQL Editor:
+  1. supabase/schema.sql
+  2. supabase/triggers.sql
+  3. supabase/policies.sql
+  4. supabase/seed.sql
+
+Objetivo:
+Validar que la base Supabase real ya está operativa y ejecutar el smoke test completo:
+
+tablas → seed → registro/login → profile → places → chat realtime → RLS → grupos → eventos → reportes/moderación
+
+No objetivos:
+- No agregar nuevas features.
+- No agregar Neo4j.
+- No agregar matching.
+- No agregar feed global.
+- No crear tag v0.1.0 todavía.
+- No imprimir secrets.
+- No subir .env.
+- No usar SUPABASE_SERVICE_ROLE_KEY desde cliente.
+- No desactivar RLS como solución permanente.
+- No volver a mocks salvo que se documente como fallback por bloqueo real.
+
+Tarea 1 — Validar entorno
+
+Ejecutar:
+
+npm run doctor:node
+npm run typecheck
+
+Confirmar:
+- Supabase URL válida.
+- anon key presente.
+- no fallback a mocks.
+- typecheck 0 errores.
+
+Tarea 2 — Verificar tablas Supabase vía API/cliente
+
+Verificar que ya no hay HTTP 404 para las tablas esperadas.
+
+Tablas esperadas:
+- blocks
+- event_rsvps
+- events
+- group_members
+- groups
+- place_messages
+- places
+- profiles
+- reports
+
+Validar con el mecanismo actual del proyecto o scripts existentes.
+
+Si alguna tabla sigue devolviendo 404:
+- detener smoke test.
+- reportar tabla faltante.
+- pedir revisar SQL aplicado en Supabase.
+- no seguir con QA funcional.
+
+Tarea 3 — Validar seed de places
+
+Consultar places.
+
+Confirmar:
+- la tabla places existe.
+- devuelve datos.
+- aparecen lugares seed como Parque Kennedy, Barranco Plaza o similares.
+- la app renderiza esos datos reales después del login.
+
+Si places está vacío:
+- reportar que seed.sql no fue aplicado o no insertó datos.
+- no marcar smoke test como completo.
+
+Tarea 4 — Smoke test Auth/Profile
+
+Desde la app en preview web:
+
+1. Crear usuario A con “Crear cuenta”.
+2. Confirmar signup exitoso.
+3. Confirmar que se crea row en profiles.
+4. Login usuario A.
+5. Logout.
+6. Login nuevamente.
+7. Confirmar sesión funcional.
+
+Si profile no se crea:
+- revisar profiles trigger.
+- documentar error.
+- proponer fix mínimo en SQL.
+- no usar service_role desde cliente.
+
+Tarea 5 — Smoke test Places
+
+Con usuario A logueado:
+
+1. Ver listado de lugares reales.
+2. Abrir detalle de un lugar, idealmente Parque Kennedy.
+3. Confirmar tabs o accesos:
+   - Chat
+   - Grupos
+   - Eventos
+4. Confirmar que ya no son mocks.
+
+Tarea 6 — Smoke test Chat Realtime con dos clientes
+
+Preparar dos sesiones/clientes.
+
+Cliente A:
+1. Login usuario A.
+2. Entrar a Parque Kennedy.
+3. Abrir chat.
+4. Enviar mensaje.
+
+Validar:
+- mensaje aparece en UI.
+- mensaje existe en place_messages.
+- user_id corresponde a usuario A.
+- no hay duplicados.
+
+Cliente B:
+1. Crear o login usuario B.
+2. Entrar al mismo lugar.
+3. Confirmar que ve mensaje de A.
+4. Enviar respuesta.
+
+Validar:
+- usuario A recibe respuesta sin refresh.
+- realtime funciona.
+- deduplicación funciona.
+- no fallback a mocks.
+
+Si realtime falla:
+- revisar publication realtime para place_messages.
+- revisar filtro por place_id.
+- revisar canal/subscription.
+- documentar error exacto.
+
+Tarea 7 — Validar RLS básico
+
+Usar docs/RLS_CHECKLIST.md.
+
+Validar:
+- authenticated puede leer places públicos.
+- authenticated puede leer place_messages visibles.
+- authenticated puede insertar place_messages con su propio user_id.
+- authenticated NO puede insertar place_messages usando user_id ajeno.
+- usuario puede leer profiles básicos.
+- usuario solo puede actualizar su propio profile.
+- usuario puede crear reports propios.
+- usuario puede crear blocks propios.
+- usuario no puede manipular reportes/bloqueos ajenos.
+
+Si falla:
+- documentar error exacto.
+- proponer fix mínimo en supabase/policies.sql.
+- no desactivar RLS globalmente.
+- no usar service_role.
+
+Tarea 8 — QA Grupos contra Supabase real
+
+Validar:
+- crear grupo.
+- editar grupo.
+- borrar grupo.
+- join grupo público.
+- leave grupo.
+- crear grupo con aprobación.
+- solicitar ingreso.
+- aprobar miembro pendiente.
+- ver miembros.
+- mis grupos.
+
+Si falla por RLS:
+- documentar policy afectada.
+- proponer fix mínimo.
+
+Tarea 9 — QA Eventos contra Supabase real
+
+Validar:
+- crear evento.
+- editar evento.
+- borrar evento.
+- RSVP going.
+- RSVP interested.
+- RSVP cancelled.
+- mis eventos.
+- selector fecha/hora amigable.
+
+Si falla:
+- documentar error.
+- proponer fix mínimo.
+
+Tarea 10 — QA Reportes, bloqueos y moderación
+
+Validar:
+- reportar mensaje.
+- reportar usuario.
+- crear block.
+- ver mis bloqueos.
+- filtrar bloqueados client-side.
+- SafetyNotice contextual.
+- moderation inbox.
+- acceso de moderador si corresponde.
+
+Si moderation inbox requiere rol:
+- documentar cómo asignarlo vía SQL/admin.
+- no usar service_role en cliente.
+
+Tarea 11 — Documentar resultados
+
+Actualizar:
+
+docs/ETAPA_1A_SUPABASE_REALTIME_QA.md
+
+Debe incluir:
+- estado de Supabase real.
+- estado de mocks.
+- tablas verificadas.
+- seed verificado.
+- auth/profile.
+- places.
+- chat realtime.
+- RLS.
+- grupos.
+- eventos.
+- reportes/bloqueos.
+- moderation inbox.
+- bugs encontrados.
+- fixes aplicados.
+- bloqueadores.
+- release readiness.
+
+Actualizar también si corresponde:
+- docs/REPLIT_CURRENT_STATUS.md
+- docs/ROADMAP.md
+- docs/SMOKE_TEST.md
+- docs/RLS_CHECKLIST.md
+- docs/SUPABASE_APPLY_SQL.md
+
+Tarea 12 — Fixes mínimos permitidos
+
+Si aparecen errores pequeños:
+- corregir código mínimo.
+- corregir docs.
+- corregir policies.sql si el error es RLS.
+- corregir seed.sql si faltan datos.
+- mantener typecheck en 0 errores.
+
+No agregar features nuevas.
+
+Tarea 13 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run typecheck
+
+Confirmar:
+- doctor OK.
+- typecheck 0 errores.
+- app no cae a mocks.
+- no secrets impresos.
+- preview web operativo.
+
+Tarea 14 — Git
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "test: validate Supabase real smoke QA"
+
+Si Replit permite push:
+
+git push origin main
+
+Si no permite push:
+- reportar que el usuario debe hacer Tools → Git → Push.
+
+No crear tag v0.1.0 todavía.
+
+Criterios de aceptación:
+
+El stage queda completo si:
+
+1. Las tablas ya existen y no devuelven 404.
+2. places tiene seed real.
+3. registro/login funciona.
+4. profile se crea.
+5. places cargan desde Supabase.
+6. chat por lugar inserta mensajes reales.
+7. realtime funciona con dos clientes.
+8. RLS básico está validado.
+9. grupos funcionan contra backend real.
+10. eventos funcionan contra backend real.
+11. reportes/bloqueos funcionan contra backend real.
+12. moderation inbox queda validado o bloqueado con razón exacta.
+13. typecheck pasa.
+14. no se expusieron secrets.
+15. no se creó tag release.
+16. docs/ETAPA_1A_SUPABASE_REALTIME_QA.md queda actualizado.
+
+Entrega final esperada:
+
+## Etapa 1A-QA Smoke Real — Resultado
+
+### Estado
+- Supabase real:
+- Mocks:
+- Tablas:
+- Seed:
+- Auth:
+- Profile:
+- Places:
+- Chat:
+- Realtime:
+- RLS:
+- Grupos:
+- Eventos:
+- Reportes/bloqueos:
+- Moderation inbox:
+- Release readiness:
+
+### Validaciones
+- doctor:node:
+- typecheck:
+- preview web:
+- tablas API:
+- registro:
+- login:
+- profile:
+- places:
+- chat:
+- realtime dos clientes:
+- RLS:
+- grupos:
+- eventos:
+- RSVP:
+- approvals:
+- reports:
+- blocks:
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Commit
+-
+
+### Próximo stage
+Si todo pasa:
+Etapa 1D — Release QA, polish crítico y preparación v0.1.0.
+
+Si falla SQL:
+Etapa 1A-SQL-Fix.
+
+Si falla RLS:
+Etapa 1A-RLS-Fix.
+
+Si falla realtime:
+Etapa 1A-Realtime-Fix.
