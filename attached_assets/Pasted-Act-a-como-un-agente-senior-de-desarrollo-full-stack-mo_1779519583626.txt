@@ -1,0 +1,632 @@
+Actúa como un agente senior de desarrollo full-stack mobile. Vas a iniciar la Etapa 0 del proyecto “Aldea”.
+
+Aldea es una red social geoespacial donde cada lugar físico tiene una comunidad viva: chat local, grupos, eventos espontáneos y conexiones reales entre personas, temas y espacios.
+
+La hipótesis principal del MVP es:
+
+“¿La gente quiere entrar al espacio digital de un lugar físico y hablar con desconocidos/locales ahí?”
+
+Por eso, NO vamos a construir todavía un grafo social completo con Neo4j. Primero debemos validar el flujo:
+
+lugar físico → conversación → grupo/evento
+
+Objetivo de esta Etapa 0:
+Crear la fundación técnica del proyecto para que el MVP pueda desarrollarse de forma ordenada, con estructura de carpetas, rutas, pantallas base, modelo de datos inicial, cliente de Supabase, tipos TypeScript y documentación mínima.
+
+Stack decidido:
+- Expo + React Native
+- TypeScript
+- Expo Router
+- Supabase para Auth, Postgres, Realtime y Storage inicial
+- Postgres relacional como base principal
+- No Neo4j en esta etapa
+- No IA en esta etapa
+- No matching romántico
+- No monetización
+- No feed global
+
+Si el repositorio está vacío:
+1. Crea una app nueva de Expo con TypeScript.
+2. Configura Expo Router.
+3. Crea la estructura base del proyecto.
+
+Si el repositorio ya existe:
+1. Inspecciona la estructura actual.
+2. No borres archivos importantes.
+3. Adapta la arquitectura propuesta respetando lo existente.
+4. Documenta cualquier decisión relevante.
+
+Nombre del proyecto:
+Aldea
+
+Descripción corta:
+Red social geoespacial donde cada lugar tiene chat público, grupos locales y eventos espontáneos.
+
+MVP funcional esperado a futuro:
+1. Mapa o listado de espacios cercanos.
+2. Perfil de lugar.
+3. Chat público por lugar.
+4. Grupos del lugar.
+5. Eventos creados desde lugar o chat.
+6. Perfil básico de usuario.
+7. Seguridad básica: reportar, bloquear, niveles de acceso.
+
+Alcance exacto de Etapa 0:
+En esta etapa debes construir una base navegable, tipada y preparada para conectar con Supabase. No hace falta que todas las funciones estén completas todavía, pero sí deben existir las rutas, pantallas, componentes base, tipos y servicios iniciales.
+
+Arquitectura esperada de carpetas:
+
+/app
+  /(auth)
+    login.tsx
+    register.tsx
+
+  /(tabs)
+    index.tsx
+    map.tsx
+    places.tsx
+    chats.tsx
+    profile.tsx
+
+  /place
+    /[id]
+      index.tsx
+      chat.tsx
+      groups.tsx
+      events.tsx
+
+  /group
+    /[id]
+      index.tsx
+      chat.tsx
+      members.tsx
+      settings.tsx
+
+  /event
+    /[id]
+      index.tsx
+      attendees.tsx
+      chat.tsx
+
+/components
+  PlaceCard.tsx
+  PlaceHeader.tsx
+  ChatMessageBubble.tsx
+  MessageInput.tsx
+  GroupCard.tsx
+  EventCard.tsx
+  SafetyNotice.tsx
+  EmptyState.tsx
+  LoadingState.tsx
+
+/lib
+  supabase.ts
+  constants.ts
+
+/services
+  places.service.ts
+  messages.service.ts
+  groups.service.ts
+  events.service.ts
+  profiles.service.ts
+
+/types
+  place.ts
+  message.ts
+  group.ts
+  event.ts
+  profile.ts
+  index.ts
+
+/data
+  mockPlaces.ts
+  mockGroups.ts
+  mockEvents.ts
+  mockMessages.ts
+
+/supabase
+  schema.sql
+  seed.sql
+  policies.sql
+
+/docs
+  PRD_MVP.md
+  TECHNICAL_ARCHITECTURE.md
+  DATA_MODEL.md
+  STAGE_0_COMPLETION.md
+
+Requisitos de implementación:
+
+1. Usa TypeScript en todo el proyecto.
+2. Crea tipos explícitos para Place, Profile, PlaceMessage, LocalGroup, LocalEvent, GroupMember, EventAttendee y TopicTag.
+3. Crea un cliente Supabase en /lib/supabase.ts usando variables de entorno.
+4. Crea un archivo .env.example con:
+   - EXPO_PUBLIC_SUPABASE_URL=
+   - EXPO_PUBLIC_SUPABASE_ANON_KEY=
+5. No incluyas secretos reales.
+6. Si no hay credenciales de Supabase, la app debe poder mostrar datos mock.
+7. Las pantallas deben ser navegables aunque usen datos mock.
+8. Evita lógica compleja de grafo en esta etapa.
+9. No implementes Neo4j.
+10. No implementes recomendaciones avanzadas.
+11. No implementes algoritmos de matching.
+12. Prioriza claridad, mantenibilidad y estructura.
+
+Modelo de datos inicial en Postgres/Supabase:
+
+Debes crear SQL para estas tablas:
+
+profiles:
+- id uuid primary key references auth.users(id)
+- username text unique
+- display_name text
+- avatar_url text
+- bio text
+- safety_mode text default 'standard'
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+
+places:
+- id uuid primary key default gen_random_uuid()
+- name text not null
+- description text
+- type text not null
+- latitude double precision not null
+- longitude double precision not null
+- radius_meters integer default 150
+- city text
+- country text
+- visibility text default 'public'
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+
+user_places:
+- id uuid primary key default gen_random_uuid()
+- user_id uuid references profiles(id)
+- place_id uuid references places(id)
+- relationship_type text default 'visited'
+- last_seen_at timestamptz
+- visit_count integer default 1
+- created_at timestamptz default now()
+
+place_messages:
+- id uuid primary key default gen_random_uuid()
+- place_id uuid references places(id)
+- user_id uuid references profiles(id)
+- body text not null
+- moderation_status text default 'visible'
+- created_at timestamptz default now()
+
+local_groups:
+- id uuid primary key default gen_random_uuid()
+- place_id uuid references places(id)
+- created_by uuid references profiles(id)
+- name text not null
+- description text
+- access_level text default 'public'
+- member_count integer default 0
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+
+group_members:
+- id uuid primary key default gen_random_uuid()
+- group_id uuid references local_groups(id)
+- user_id uuid references profiles(id)
+- role text default 'member'
+- status text default 'active'
+- joined_at timestamptz default now()
+
+group_messages:
+- id uuid primary key default gen_random_uuid()
+- group_id uuid references local_groups(id)
+- user_id uuid references profiles(id)
+- body text not null
+- moderation_status text default 'visible'
+- created_at timestamptz default now()
+
+local_events:
+- id uuid primary key default gen_random_uuid()
+- place_id uuid references places(id)
+- group_id uuid references local_groups(id)
+- created_by uuid references profiles(id)
+- title text not null
+- description text
+- starts_at timestamptz not null
+- ends_at timestamptz
+- capacity integer
+- access_level text default 'public'
+- source_type text default 'place'
+- source_message_id uuid references place_messages(id)
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+
+event_attendees:
+- id uuid primary key default gen_random_uuid()
+- event_id uuid references local_events(id)
+- user_id uuid references profiles(id)
+- status text default 'going'
+- joined_at timestamptz default now()
+
+topic_tags:
+- id uuid primary key default gen_random_uuid()
+- name text unique not null
+- created_at timestamptz default now()
+
+message_topic_tags:
+- id uuid primary key default gen_random_uuid()
+- message_id uuid references place_messages(id)
+- topic_tag_id uuid references topic_tags(id)
+
+safety_reports:
+- id uuid primary key default gen_random_uuid()
+- reporter_id uuid references profiles(id)
+- reported_user_id uuid references profiles(id)
+- place_id uuid references places(id)
+- message_id uuid references place_messages(id)
+- reason text not null
+- details text
+- status text default 'open'
+- created_at timestamptz default now()
+
+user_blocks:
+- id uuid primary key default gen_random_uuid()
+- blocker_id uuid references profiles(id)
+- blocked_id uuid references profiles(id)
+- created_at timestamptz default now()
+
+Añade índices básicos para:
+- places(latitude, longitude)
+- place_messages(place_id, created_at)
+- local_groups(place_id)
+- local_events(place_id, starts_at)
+- group_members(group_id, user_id)
+- event_attendees(event_id, user_id)
+- user_places(user_id, place_id)
+
+Crea políticas RLS iniciales en /supabase/policies.sql:
+- Los perfiles pueden ser leídos por usuarios autenticados.
+- Cada usuario puede actualizar solo su propio perfil.
+- Los lugares públicos pueden ser leídos por usuarios autenticados.
+- Los mensajes visibles de un lugar pueden ser leídos por usuarios autenticados.
+- Los usuarios autenticados pueden crear mensajes con su propio user_id.
+- Los usuarios pueden leer grupos públicos.
+- Los usuarios pueden solicitar o crear membresías usando su propio user_id.
+- Los reportes solo pueden ser creados por el usuario autenticado.
+- Los bloqueos solo pueden ser creados por el usuario autenticado.
+
+No hace falta que las políticas sean perfectas, pero deben ser una base razonable y documentada.
+
+Pantallas a crear:
+
+1. Login
+- UI simple.
+- Campos email/password.
+- Botones de login y registro.
+- Puede estar conectado parcialmente a Supabase o preparado para hacerlo.
+
+2. Register
+- UI simple.
+- Email/password/display name.
+- Preparado para crear perfil.
+
+3. Map / Spaces
+- Pantalla principal del MVP.
+- Puede mostrar lista de lugares mock si todavía no hay mapa real.
+- Debe mostrar lugares cercanos con nombre, tipo, número de conversaciones, grupos y eventos.
+- Cada PlaceCard debe navegar a /place/[id].
+
+4. Place Detail
+- Muestra nombre del lugar, descripción, tipo, ciudad, estado de comunidad.
+- Tabs o botones hacia:
+  - Chat
+  - Grupos
+  - Eventos
+
+5. Place Chat
+- Lista de mensajes.
+- Input para enviar mensaje.
+- En esta etapa puede usar mock o servicio preparado.
+- Debe existir messages.service.ts con funciones:
+  - getPlaceMessages(placeId)
+  - sendPlaceMessage(placeId, body)
+  - subscribeToPlaceMessages(placeId, callback)
+
+6. Place Groups
+- Lista de grupos del lugar.
+- Botón “Crear grupo” puede ser placeholder.
+- Debe mostrar access_level.
+
+7. Place Events
+- Lista de eventos del lugar.
+- Botón “Crear evento” puede ser placeholder.
+- Debe mostrar fecha, cupos y access_level.
+
+8. Profile
+- Perfil básico.
+- Display name.
+- Bio.
+- Safety mode.
+- Placeholder para editar perfil.
+- Placeholder para bloqueos/reportes.
+
+Componentes base:
+
+PlaceCard:
+- name
+- type
+- city
+- active indicator
+- groups count
+- events count
+
+ChatMessageBubble:
+- display name
+- body
+- created_at
+- moderation_status
+
+MessageInput:
+- text input
+- send button
+- disabled state
+
+GroupCard:
+- name
+- description
+- access_level
+- member_count
+
+EventCard:
+- title
+- starts_at
+- capacity
+- access_level
+
+SafetyNotice:
+- mensaje corto explicando que no se comparte ubicación exacta públicamente.
+
+Servicios:
+
+places.service.ts:
+- getNearbyPlaces()
+- getPlaceById(id)
+
+messages.service.ts:
+- getPlaceMessages(placeId)
+- sendPlaceMessage(placeId, body)
+- subscribeToPlaceMessages(placeId, callback)
+
+groups.service.ts:
+- getGroupsByPlace(placeId)
+- getGroupById(id)
+- joinGroup(groupId)
+
+events.service.ts:
+- getEventsByPlace(placeId)
+- getEventById(id)
+- joinEvent(eventId)
+
+profiles.service.ts:
+- getCurrentProfile()
+- updateProfile(input)
+
+Cada servicio puede usar mocks si Supabase no está configurado. Diseña esto de manera limpia: idealmente con una constante o helper que detecte si las variables de entorno existen.
+
+Tipos TypeScript esperados:
+
+Place:
+- id
+- name
+- description
+- type
+- latitude
+- longitude
+- radiusMeters
+- city
+- country
+- visibility
+- createdAt
+- updatedAt
+
+Profile:
+- id
+- username
+- displayName
+- avatarUrl
+- bio
+- safetyMode
+- createdAt
+- updatedAt
+
+PlaceMessage:
+- id
+- placeId
+- userId
+- body
+- moderationStatus
+- createdAt
+- profile optional
+
+LocalGroup:
+- id
+- placeId
+- createdBy
+- name
+- description
+- accessLevel
+- memberCount
+- createdAt
+- updatedAt
+
+LocalEvent:
+- id
+- placeId
+- groupId optional
+- createdBy
+- title
+- description
+- startsAt
+- endsAt optional
+- capacity optional
+- accessLevel
+- sourceType
+- sourceMessageId optional
+- createdAt
+- updatedAt
+
+AccessLevel:
+- public
+- local_only
+- invite_only
+- approval_required
+- verified_only
+- private
+
+SafetyMode:
+- standard
+- approximate
+- invisible
+
+PlaceType:
+- park
+- plaza
+- cafe
+- campus
+- coworking
+- neighborhood
+- beach
+- market
+- cultural_space
+- other
+
+Documentación obligatoria:
+
+Crea /docs/PRD_MVP.md con:
+- Problema
+- Hipótesis
+- Usuario objetivo inicial
+- Propuesta de valor
+- Flujo principal
+- Funciones del MVP
+- No objetivos de la primera versión
+- Riesgos principales
+
+Crea /docs/TECHNICAL_ARCHITECTURE.md con:
+- Stack
+- Decisión de usar Supabase primero
+- Decisión de NO usar Neo4j todavía
+- Cómo se agregaría Neo4j después
+- Estructura del proyecto
+- Flujo de datos
+- Consideraciones de realtime
+- Consideraciones de privacidad
+
+Crea /docs/DATA_MODEL.md con:
+- Explicación de tablas
+- Relaciones
+- Futuro paso hacia grafo social
+- Qué relaciones ya estamos guardando de forma relacional
+
+Crea /docs/STAGE_0_COMPLETION.md con:
+- Qué se implementó
+- Qué quedó pendiente
+- Cómo correr el proyecto
+- Cómo configurar Supabase
+- Próximos pasos recomendados
+
+Criterios de aceptación de Etapa 0:
+
+La etapa se considera completa si:
+
+1. El proyecto corre localmente.
+2. Existe navegación base con Expo Router.
+3. Hay pantallas para auth, mapa/lista de lugares, detalle de lugar, chat, grupos, eventos y perfil.
+4. Hay datos mock funcionales.
+5. Hay cliente Supabase configurado con variables de entorno.
+6. Hay servicios separados para places, messages, groups, events y profiles.
+7. Hay tipos TypeScript claros.
+8. Hay SQL inicial para schema, seed y policies.
+9. Hay documentación mínima en /docs.
+10. No hay implementación de Neo4j.
+11. No hay matching romántico.
+12. No hay features fuera del MVP.
+13. No se exponen coordenadas exactas de usuarios en la UI.
+14. El código está organizado para que la siguiente etapa pueda implementar funcionalidades reales sin rehacer la base.
+
+Prioridades de UX:
+
+- La app debe sentirse como “entro a un lugar y veo su comunidad”.
+- La pantalla de lugar debe ser el centro del MVP.
+- El chat público del lugar debe ser fácil de encontrar.
+- Los grupos y eventos deben estar claramente ligados al lugar.
+- La seguridad debe aparecer desde el inicio, aunque sea como UI y documentación básica.
+- Evita una estética de dating app.
+- Evita una estética de marketplace.
+- El producto debe sentirse comunitario, local y seguro.
+
+Reglas de privacidad para esta etapa:
+
+- No mostrar ubicación exacta de usuarios.
+- No mostrar “Sandra está exactamente aquí”.
+- Mostrar como máximo presencia agregada o estado comunitario.
+- Usar textos tipo:
+  “Tu ubicación exacta no se comparte públicamente.”
+  “Los chats de lugar están pensados para conversaciones locales y seguras.”
+- Preparar estructura para bloqueos y reportes desde el inicio.
+
+Seed data sugerido:
+
+Crea algunos lugares mock/seed:
+
+1. Parque Kennedy
+- type: park
+- city: Lima
+- country: Peru
+
+2. Barranco Plaza
+- type: plaza
+- city: Lima
+- country: Peru
+
+3. Café Cultural Miraflores
+- type: cafe
+- city: Lima
+- country: Peru
+
+4. Coworking Creativo
+- type: coworking
+- city: Lima
+- country: Peru
+
+Crea grupos mock:
+- Club de conversación japonesa
+- Skaters del parque
+- Lectura al aire libre
+- Nómadas digitales
+- Comunidad queer segura
+
+Crea eventos mock:
+- Picnic de conversación
+- Caminata grupal
+- Intercambio cultural
+- Café de freelancers
+
+Entrega esperada:
+
+No entregues solo una explicación. Implementa los archivos necesarios en el repositorio.
+
+Al terminar, genera un resumen con:
+1. Archivos creados/modificados.
+2. Cómo correr el proyecto.
+3. Cómo configurar Supabase.
+4. Qué está usando mocks.
+5. Qué queda listo para Etapa 1.
+6. Riesgos o decisiones técnicas tomadas.
+
+Etapa 1 esperada después de esto:
+- Conectar auth real con Supabase.
+- Conectar lugares reales desde Postgres.
+- Implementar realtime real en chat por lugar.
+- Crear grupos reales.
+- Crear eventos reales.
+- Implementar reportes y bloqueos básicos.

@@ -1,0 +1,657 @@
+Actúa como agente senior full-stack mobile, release engineering y Replit/GitHub workflow para el proyecto ParkChat / Aldea.
+
+Proyecto:
+ParkChat / Aldea
+
+Stack:
+- Expo
+- React Native
+- TypeScript
+- Expo Router
+- Supabase
+- Postgres/Supabase Realtime
+- GitHub como fuente de verdad
+- Replit como workspace cloud del agente
+
+Contexto:
+Este proyecto ya está levantado en Replit y conectado a GitHub. El código actual de GitHub es la fuente de verdad.
+
+Aldea/ParkChat es una red social geoespacial donde cada lugar físico tiene una comunidad viva: chat local, grupos, eventos espontáneos y conexiones reales entre personas, temas y espacios.
+
+La hipótesis principal del MVP es:
+
+“¿La gente quiere entrar al espacio digital de un lugar físico y hablar con desconocidos/locales ahí?”
+
+Flujo MVP principal:
+
+lugar físico → conversación pública → grupo/evento
+
+Estado previo esperado:
+- Etapa 0: scaffold técnico creado.
+- Expo + React Native + TypeScript configurado.
+- Expo Router configurado.
+- Supabase client preparado.
+- Pantallas base creadas.
+- Servicios base creados.
+- Mock data disponible.
+- SQL inicial disponible.
+- Docs iniciales disponibles.
+- Proyecto migrado o levantado en Replit.
+- GitHub conectado.
+
+Objetivo de esta etapa:
+Continuar el desarrollo desde Replit sin romper el flujo local ni el repo GitHub.
+
+Prioridades de esta etapa:
+1. Validar sincronización Replit ↔ GitHub.
+2. Validar que el proyecto corre como workspace Replit.
+3. Validar scripts Expo/Node.
+4. Preparar workflow de commits y releases.
+5. Configurar o validar variables Supabase en Replit.
+6. Ejecutar typecheck.
+7. Probar preview web si es viable.
+8. Probar Expo Go mediante tunnel si es viable.
+9. Continuar Etapa 1A: Supabase Auth + Places reales + Chat público realtime por lugar.
+
+No objetivos:
+- No implementar Neo4j todavía.
+- No implementar matching romántico.
+- No implementar feed global.
+- No crear marketplace.
+- No crear monetización.
+- No agregar IA.
+- No cambiar el producto a web-only.
+- No eliminar soporte mobile.
+- No exponer claves privadas.
+- No usar SUPABASE_SERVICE_ROLE_KEY en cliente.
+- No subir .env con secretos.
+- No romper scripts de Windows si existen.
+- No hacer release/tag sin validar primero.
+- No implementar features fuera del MVP.
+
+Primera tarea: validar GitHub/Replit sync.
+
+Ejecutar:
+
+git remote -v
+git branch
+git status
+git log --oneline -10
+
+Confirmar:
+- origin apunta al repo correcto de GitHub.
+- La rama principal es main o documentar si es otra.
+- El working tree está limpio o documentar cambios.
+- Replit puede hacer commits.
+- Replit puede hacer push a GitHub.
+
+Si falta identidad Git local, configurar solo para este repo:
+
+git config user.name "Replit Agent"
+git config user.email "replit-agent@example.com"
+
+No configurar tokens ni credenciales sensibles en texto plano.
+
+Segunda tarea: inspeccionar estructura del proyecto.
+
+Revisar si existen:
+
+package.json
+package-lock.json
+app/
+components/
+lib/
+services/
+types/
+data/
+supabase/
+docs/
+scripts/
+.env.example
+.gitignore
+
+Revisar también si existen:
+
+app/(auth)/login.tsx
+app/(auth)/register.tsx
+app/(tabs)/index.tsx
+app/(tabs)/map.tsx
+app/(tabs)/places.tsx
+app/(tabs)/chats.tsx
+app/(tabs)/profile.tsx
+app/place/[id]/index.tsx
+app/place/[id]/chat.tsx
+app/place/[id]/groups.tsx
+app/place/[id]/events.tsx
+
+Si la estructura difiere, no rehacer todo. Documentar la estructura real y adaptar el trabajo a lo existente.
+
+Tercera tarea: validar package.json.
+
+Revisar scripts existentes.
+
+El proyecto debería tener o incorporar scripts similares:
+
+{
+  "start": "expo start",
+  "start:go": "expo start --tunnel --go",
+  "start:web": "expo start --web --port 8081",
+  "start:clear": "expo start --clear",
+  "typecheck": "tsc --noEmit",
+  "doctor:node": "node scripts/doctor-node.mjs",
+  "doctor:node:windows": "powershell -ExecutionPolicy Bypass -File scripts/doctor-node.ps1"
+}
+
+Si ya existen scripts equivalentes, no duplicarlos.
+
+Si falta doctor-node.mjs, crearlo como diagnóstico cross-platform para Replit/Linux/macOS/Windows.
+
+scripts/doctor-node.mjs debe revisar:
+- node -v
+- npm -v
+- npx -v
+- process.platform
+- cwd
+- existencia de package.json
+- existencia de app/
+- existencia de EXPO_PUBLIC_SUPABASE_URL
+- existencia de EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+No debe imprimir valores secretos, solo “set/missing”.
+
+Cuarta tarea: validar instalación.
+
+Ejecutar en Replit:
+
+node -v
+npm -v
+npx -v
+npm install
+npm run doctor:node
+npm run typecheck
+
+Si npm install falla:
+- documentar error exacto
+- no borrar package-lock sin motivo
+- no hacer npm audit fix --force
+- no cambiar versiones a ciegas
+
+Si npm audit reporta vulnerabilidades:
+- documentar
+- no corregir con --force en esta etapa
+
+Quinta tarea: validar variables Supabase.
+
+Revisar .env.example.
+
+Debe incluir:
+
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+
+En Replit, validar que las variables estén en Secrets/Environment Variables.
+
+No crear .env con valores reales.
+No subir secretos.
+No usar service_role en cliente.
+
+Validar lib/supabase.ts:
+- Usa EXPO_PUBLIC_SUPABASE_URL.
+- Usa EXPO_PUBLIC_SUPABASE_ANON_KEY.
+- Si faltan variables, la app puede caer a mocks o mostrar aviso claro.
+- No rompe el build por falta de Supabase durante preview básico.
+
+Sexta tarea: validar Expo preview.
+
+Primero probar web si está configurado:
+
+npm run start:web
+
+Si Expo Web falla por dependencias nativas:
+- documentar error
+- agregar fallback web si es razonable
+- no convertir la app en web-only
+
+Para componentes de mapas o ubicación, usar fallback:
+
+- mobile: mapa o componente nativo
+- web: lista de lugares
+
+Ejemplo conceptual:
+Si Platform.OS === "web", mostrar PlacesListFallback.
+
+Luego preparar Expo Go:
+
+npm run start:go
+
+Objetivo:
+- generar QR o tunnel
+- permitir abrir con Expo Go en teléfono
+- no bloquear si Replit no permite mantener proceso interactivo
+- documentar resultado
+
+No asumir que GPS real funciona en Replit. GPS real se valida en teléfono físico.
+
+Séptima tarea: preparar release workflow.
+
+Revisar si existe:
+
+.github/workflows/release.yml
+
+Si no existe, crearlo.
+
+Objetivo:
+Cuando se suba un tag tipo v0.1.0, GitHub Actions crea un release con bundle fuente limpio.
+
+Crear archivo:
+
+.github/workflows/release.yml
+
+Contenido sugerido:
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create source bundle
+        run: |
+          mkdir -p dist
+          zip -r dist/parkchat_source_bundle.zip . \
+            -x ".git/*" \
+            -x "dist/*" \
+            -x "node_modules/*" \
+            -x ".expo/*" \
+            -x ".env" \
+            -x ".env.*" \
+            -x "web-build/*" \
+            -x "android/*" \
+            -x "ios/*" \
+            -x "npm-debug.log*" \
+            -x "yarn-debug.log*" \
+            -x "yarn-error.log*"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/parkchat_source_bundle.zip \
+            --title "ParkChat ${GITHUB_REF_NAME}" \
+            --generate-notes
+
+No crear tag todavía salvo que el usuario lo pida.
+
+Octava tarea: crear documentación de sync.
+
+Crear o actualizar:
+
+docs/GITHUB_REPLIT_SYNC.md
+
+Debe incluir:
+
+# GitHub/Replit Sync
+
+Secciones:
+1. GitHub como fuente de verdad.
+2. Replit como workspace del agente.
+3. Cómo validar remote.
+4. Cómo hacer commit desde Replit.
+5. Cómo hacer push.
+6. Cómo crear release mediante tag.
+7. Qué no versionar.
+8. Qué hacer si hay conflictos.
+9. Qué hacer si push falla.
+10. Qué hacer si release falla.
+
+Comandos mínimos:
+
+git status
+git add .
+git commit -m "..."
+git push origin main
+
+Release por tag:
+
+git tag v0.1.0
+git push origin v0.1.0
+
+Novena tarea: crear estado actual de Replit.
+
+Crear:
+
+docs/REPLIT_CURRENT_STATUS.md
+
+Debe incluir:
+
+# Replit Current Status
+
+Secciones:
+1. Fecha de validación.
+2. Repo GitHub conectado.
+3. Rama activa.
+4. Últimos commits.
+5. Resultado de node -v.
+6. Resultado de npm -v.
+7. Resultado de npm install.
+8. Resultado de doctor:node.
+9. Resultado de typecheck.
+10. Resultado de start:web.
+11. Resultado de start:go.
+12. Variables Supabase esperadas.
+13. Variables Supabase detectadas como set/missing, sin imprimir valores.
+14. Qué funciona en Replit.
+15. Qué no está validado todavía.
+16. Próximo paso recomendado.
+
+Debe decir claramente si Replit está validado como:
+- workspace cloud
+- preview web
+- Expo Go tunnel
+- backend Supabase real
+- solo scaffold
+
+Décima tarea: continuar Etapa 1A.
+
+Objetivo Etapa 1A:
+Conectar funcionalidad real mínima con Supabase para validar:
+
+usuario autenticado → lista de lugares → detalle de lugar → chat público del lugar → mensaje realtime
+
+Antes de implementar, revisar qué ya existe en:
+
+services/
+lib/
+types/
+supabase/
+app/
+
+No duplicar servicios si ya existen.
+
+Implementar o completar:
+
+1. Auth real:
+- register con email/password/display name
+- login con email/password
+- logout
+- sesión actual
+- loading/error states
+
+Archivos posibles:
+- services/auth.service.ts
+- services/profiles.service.ts
+- app/(auth)/login.tsx
+- app/(auth)/register.tsx
+
+2. Profile:
+- creación de profile al registrar usuario
+- lectura de perfil actual
+- update básico
+
+Si falta trigger SQL, crear:
+
+supabase/profiles-trigger.sql
+
+Debe crear profile automáticamente al insert en auth.users.
+
+3. Places reales:
+- services/places.service.ts
+- getNearbyPlaces()
+- getPlaceById(id)
+- usar Supabase si está configurado
+- usar mocks si Supabase no está configurado
+
+4. Chat público real por lugar:
+- services/messages.service.ts
+- getPlaceMessages(placeId)
+- sendPlaceMessage(placeId, body)
+- subscribeToPlaceMessages(placeId, callback)
+
+Requisitos:
+- leer place_messages filtrados por place_id
+- insertar mensaje con user_id del usuario autenticado
+- suscribirse a inserts realtime filtrados por place_id
+- evitar duplicados
+- unsubscribe al desmontar pantalla
+- manejar errores RLS
+- input disabled si no hay sesión
+
+5. UI:
+- Place detail debe tener botones/tabs para chat, grupos y eventos
+- Place chat debe cargar mensajes
+- MessageInput debe enviar
+- EmptyState si no hay mensajes
+- LoadingState mientras carga
+- SafetyNotice visible:
+  “Tu ubicación exacta no se comparte públicamente.”
+
+Onceava tarea: revisar SQL Supabase.
+
+Revisar:
+
+supabase/schema.sql
+supabase/policies.sql
+supabase/seed.sql
+
+Asegurar que existan o crear si faltan:
+- profiles
+- places
+- user_places
+- place_messages
+- local_groups
+- group_members
+- group_messages
+- local_events
+- event_attendees
+- topic_tags
+- message_topic_tags
+- safety_reports
+- user_blocks
+
+RLS básico:
+- usuarios autenticados leen places públicos
+- usuarios autenticados leen mensajes visibles
+- usuarios autenticados insertan mensajes con su propio user_id
+- usuarios leen perfiles básicos
+- usuarios actualizan solo su propio perfil
+- reportes y bloqueos se crean solo con auth.uid()
+
+No hacer policies excesivamente complejas todavía.
+
+Doceava tarea: validar .gitignore.
+
+Confirmar que ignora:
+
+node_modules/
+.env
+.env.*
+.expo/
+dist/
+web-build/
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+No ignorar:
+- .env.example
+- app/
+- components/
+- lib/
+- services/
+- types/
+- data/
+- supabase/
+- docs/
+- scripts/
+- .github/workflows/release.yml
+
+Treceava tarea: documentación de Etapa 1A.
+
+Crear o actualizar:
+
+docs/ETAPA_1A_SUPABASE_REALTIME.md
+
+Debe incluir:
+
+# Etapa 1A — Supabase Auth + Places + Place Chat Realtime
+
+Secciones:
+1. Objetivo
+2. Flujo validado
+3. Archivos modificados
+4. Variables necesarias
+5. SQL que debe ejecutarse en Supabase
+6. Cómo probar auth
+7. Cómo probar places
+8. Cómo probar chat realtime
+9. Cómo probar con dos clientes
+10. Problemas conocidos
+11. Qué sigue
+
+Catorceava tarea: validaciones finales.
+
+Ejecutar:
+
+npm run doctor:node
+npm run typecheck
+
+Si es viable:
+
+npm run start:web
+
+Si es viable:
+
+npm run start:go
+
+No dejar procesos corriendo indefinidamente.
+
+Quinceava tarea: commit y push.
+
+Antes de commit:
+
+git status --short
+
+Confirmar que no aparecen:
+- node_modules/
+- .env
+- .expo/
+- dist/
+- web-build/
+
+Crear commit:
+
+git add .
+git commit -m "chore: validate Replit workflow and continue Aldea MVP"
+
+Luego:
+
+git push origin main
+
+Si el push falla:
+- documentar error exacto
+- no usar tokens inseguros
+- no imprimir credenciales
+
+No crear tag release todavía salvo instrucción explícita.
+
+Criterios de aceptación:
+
+Esta etapa queda completa si:
+
+1. Replit está conectado a GitHub.
+2. git remote -v apunta al repo correcto.
+3. El agente puede hacer commit.
+4. El agente puede hacer push.
+5. npm install pasa o el error queda documentado.
+6. doctor:node pasa.
+7. typecheck pasa.
+8. .env.example existe.
+9. Supabase env vars están documentadas.
+10. start:web fue probado o el bloqueo queda documentado.
+11. start:go fue probado o el bloqueo queda documentado.
+12. release.yml existe.
+13. docs/GITHUB_REPLIT_SYNC.md existe.
+14. docs/REPLIT_CURRENT_STATUS.md existe.
+15. docs/ETAPA_1A_SUPABASE_REALTIME.md existe.
+16. No se expusieron secretos.
+17. No se rompió soporte mobile.
+18. No se convirtió el proyecto en web-only.
+19. No se agregó Neo4j.
+20. No se agregaron features fuera del MVP.
+
+Entrega final esperada:
+
+Responder con:
+
+## ParkChat / Aldea — Replit Continuation Resultado
+
+### Estado
+- Workspace Replit:
+- GitHub sync:
+- Release workflow:
+- Expo Web:
+- Expo Go:
+- Supabase:
+- Etapa 1A:
+
+### Git
+- remote:
+- branch:
+- último commit:
+- push:
+
+### Validaciones
+- node:
+- npm:
+- npm install:
+- doctor:node:
+- typecheck:
+- start:web:
+- start:go:
+
+### Supabase
+- env vars:
+- auth:
+- places:
+- place chat:
+- realtime:
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### No se hizo
+-
+
+### Bloqueadores
+-
+
+### Commit creado
+-
+
+### Próximo stage
+Si Etapa 1A quedó completa:
+Etapa 1B — grupos reales por lugar + eventos reales desde lugar/chat.
+
+Si Etapa 1A quedó incompleta:
+Etapa 1A-Fix — resolver Supabase/Auth/Realtime según bloqueo detectado.
+
+Si GitHub sync falló:
+R-Fix — corregir autenticación GitHub/Replit.

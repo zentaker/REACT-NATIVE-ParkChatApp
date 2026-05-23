@@ -1,0 +1,247 @@
+Actúa como agente senior full-stack mobile para el proyecto Aldea.
+
+Contexto:
+Aldea es una red social geoespacial donde cada lugar físico tiene una comunidad viva: chat local, grupos, eventos espontáneos y conexiones entre personas, temas y espacios.
+
+Etapa 0 ya creó la base del proyecto:
+- Expo + React Native
+- TypeScript
+- Expo Router
+- Supabase client preparado
+- Servicios separados
+- Datos mock
+- SQL inicial
+- Pantallas base
+- Documentación
+- Diagnóstico Windows Node toolchain con scripts/doctor-node.ps1
+
+Diagnóstico de entorno ya resuelto:
+- Node real está en C:\Program Files\nodejs\
+- Usar npm.cmd y npx.cmd desde esa ruta si PATH falla
+- doctor:node y typecheck pasan
+- No modificar este diagnóstico salvo que sea necesario
+
+Objetivo de Etapa 1A:
+Conectar funcionalidad real mínima con Supabase para validar el flujo principal:
+
+usuario autenticado → lista de lugares → detalle de lugar → chat público del lugar → mensaje realtime
+
+No construir todavía Neo4j.
+No construir matching.
+No construir feed global.
+No construir IA.
+No construir monetización.
+No convertir esto en dating app.
+
+Prioridad absoluta:
+El chat público por lugar debe funcionar con Supabase Realtime.
+
+Tareas principales:
+
+1. Revisar estructura actual del repo
+- Inspecciona package.json, app, services, lib, types, supabase y docs.
+- No borres archivos existentes sin necesidad.
+- Mantén el patrón actual del proyecto.
+
+2. Validar Supabase client
+- Revisar /lib/supabase.ts.
+- Debe usar:
+  EXPO_PUBLIC_SUPABASE_URL
+  EXPO_PUBLIC_SUPABASE_ANON_KEY
+- Si las variables no existen, la app debe seguir funcionando con mocks.
+- No agregar secretos reales.
+
+3. Mejorar Auth real
+Implementar o completar:
+- register con email/password/display name
+- login con email/password
+- logout
+- detección de sesión actual
+- persistencia de sesión
+- protección básica de rutas si aplica
+- manejo de loading/error
+
+Archivos esperados:
+- app/(auth)/login.tsx
+- app/(auth)/register.tsx
+- services/auth.service.ts si no existe
+- services/profiles.service.ts
+
+4. Crear perfil automáticamente
+Agregar SQL en Supabase para crear profile cuando se crea un usuario en auth.users.
+
+Crear o actualizar archivo:
+- supabase/profiles-trigger.sql
+
+Debe incluir una función similar a:
+- handle_new_user()
+- trigger on auth.users after insert
+- inserta en public.profiles
+
+Debe mapear:
+- id = new.id
+- display_name desde raw_user_meta_data.display_name si existe
+- username opcional
+- created_at
+- updated_at
+
+5. Conectar lugares reales
+Actualizar places.service.ts para:
+- leer places desde Supabase si está configurado
+- usar mocks si Supabase no está configurado
+- getNearbyPlaces()
+- getPlaceById(id)
+
+Por ahora no calcular distancia compleja.
+Puede ordenar por created_at o name.
+No exponer ubicación exacta de usuarios.
+
+6. Conectar chat real por lugar
+Actualizar messages.service.ts para:
+- getPlaceMessages(placeId)
+- sendPlaceMessage(placeId, body)
+- subscribeToPlaceMessages(placeId, callback)
+
+Requisitos:
+- Leer mensajes de place_messages.
+- Insertar mensajes usando user_id del usuario autenticado.
+- Suscribirse con Supabase Realtime a inserts de place_messages filtrados por place_id.
+- Mostrar mensajes nuevos sin recargar.
+- Manejar unsubscribe al desmontar pantalla.
+- Manejar errores de permisos/RLS de forma visible.
+
+La pantalla:
+- app/place/[id]/chat.tsx
+
+Debe:
+- cargar mensajes iniciales
+- mostrar estado loading
+- mostrar EmptyState si no hay mensajes
+- permitir enviar mensaje
+- limpiar input después de enviar
+- deshabilitar input si no hay sesión
+- suscribirse a realtime
+- evitar duplicados si el mensaje enviado vuelve por realtime
+
+7. Mejorar tipos
+Revisar y completar:
+- types/message.ts
+- types/profile.ts
+- types/place.ts
+- types/index.ts
+
+Asegurar que los tipos reflejen bien snake_case de Supabase y camelCase de UI si se usan mappers.
+
+Ideal:
+- Crear mappers simples para convertir Supabase rows a tipos de app.
+
+8. RLS y policies
+Revisar:
+- supabase/policies.sql
+
+Asegurar que:
+- usuarios autenticados puedan leer places públicos
+- usuarios autenticados puedan leer place_messages visibles
+- usuarios autenticados puedan insertar place_messages con su propio user_id
+- usuarios puedan leer profiles básicos
+- usuarios puedan actualizar solo su propio profile
+
+No hacer políticas excesivamente complejas todavía.
+
+9. Seed data
+Revisar:
+- supabase/seed.sql
+
+Asegurar que existan lugares base:
+- Parque Kennedy
+- Barranco Plaza
+- Café Cultural Miraflores
+- Coworking Creativo
+
+No depender de perfiles reales para seed de mensajes si eso complica auth.
+El seed de mensajes puede omitirse o ser opcional.
+
+10. UI mínima pero clara
+La experiencia debe sentirse así:
+- entro a la app
+- inicio sesión
+- veo lugares
+- entro a Parque Kennedy
+- entro al chat
+- escribo
+- veo el mensaje aparecer
+- otro cliente ve el mensaje en realtime
+
+Agregar o mejorar textos de seguridad:
+- “Tu ubicación exacta no se comparte públicamente.”
+- “Este chat pertenece a un lugar, no a una ubicación exacta de usuarios.”
+
+11. Documentación
+Actualizar:
+- docs/ETAPA_1.md
+
+Agregar:
+- qué se implementó en Etapa 1A
+- cómo crear proyecto Supabase
+- qué SQL correr y en qué orden
+- cómo configurar .env
+- cómo probar auth
+- cómo probar realtime
+- cómo probar RLS
+- problemas conocidos en Windows
+
+Crear si hace falta:
+- docs/SUPABASE_SETUP.md
+
+Debe explicar:
+1. Crear proyecto Supabase.
+2. Copiar URL y anon key.
+3. Crear .env local.
+4. Ejecutar schema.sql.
+5. Ejecutar profiles-trigger.sql.
+6. Ejecutar policies.sql.
+7. Ejecutar seed.sql.
+8. Activar Realtime para place_messages si hace falta.
+9. Probar app.
+
+12. Validación final
+Al terminar ejecutar:
+
+npm.cmd run doctor:node
+npm.cmd run typecheck
+
+Si existe lint:
+npm.cmd run lint
+
+No es obligatorio que npm run start quede corriendo, pero sí debe poder iniciar Metro si el entorno tiene permisos.
+
+Criterios de aceptación:
+
+Etapa 1A está completa si:
+
+1. El usuario puede registrarse con email/password.
+2. El usuario puede iniciar sesión.
+3. El usuario puede cerrar sesión.
+4. Al registrarse se crea un profile en Supabase.
+5. La app puede leer places desde Supabase.
+6. La app puede abrir detalle de lugar.
+7. La app puede abrir chat del lugar.
+8. La app puede cargar mensajes reales de place_messages.
+9. La app puede enviar mensajes reales.
+10. La app recibe mensajes nuevos por Supabase Realtime.
+11. El chat se filtra por place_id.
+12. RLS no bloquea operaciones válidas.
+13. RLS bloquea inserts con user_id distinto al usuario autenticado.
+14. Si Supabase no está configurado, la app sigue mostrando mocks.
+15. typecheck pasa.
+16. No se implementa Neo4j.
+17. No se implementa matching.
+18. No se agregan features fuera del MVP.
+
+Al finalizar, entrega resumen con:
+- archivos modificados
+- SQL agregado
+- cómo configurar Supabase
+- cómo probar realtime con dos clientes
+- qué sigue para Etapa 1B
+- riesgos técnicos encontrados
