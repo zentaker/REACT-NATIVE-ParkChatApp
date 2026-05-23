@@ -1,0 +1,389 @@
+Actúa como agente senior Expo/Replit mobile preview engineer para ParkChat / Aldea.
+
+Sprint:
+Preview Sprint — Mobile/Web Preview Stabilization
+
+Proyecto:
+zentaker/REACT-NATIVE-ParkChatApp
+Branch:
+main
+Workspace:
+Replit
+
+Contexto:
+La app ParkChat/Aldea está desarrollada con:
+- Expo
+- React Native
+- TypeScript
+- Expo Router
+- Supabase
+- Replit como workspace
+- GitHub como fuente de verdad
+
+Problema:
+El usuario no puede visualizar cómodamente el avance de la app en Replit. Necesitamos estabilizar el preview para que pueda ver la interfaz al costado mientras el agente trabaja.
+
+Estado actual conocido:
+- npx expo start --web --port 5000 corre.
+- Preview web ha renderizado antes.
+- Typecheck pasa.
+- Backend Supabase real sigue bloqueado por secret URL inválido, pero este sprint no debe depender de Supabase real.
+- La app puede funcionar con mocks.
+- Etapas 0, 1A, 1B, 1C están implementadas a nivel código.
+- El foco actual NO es QA Supabase.
+- El foco actual es visualización/preview.
+
+Objetivo del sprint:
+Dejar funcionando al menos una ruta estable de visualización:
+
+Ruta A — Replit Web Preview:
+- La app abre en el panel Preview.
+- Se ve en layout mobile/responsive.
+- Se puede navegar por tabs.
+- Se pueden abrir pantallas principales.
+- Funciona con mocks si Supabase no está configurado.
+
+Ruta B — Expo Go:
+- El proyecto puede iniciar con tunnel.
+- Se muestra QR.
+- El usuario puede abrirlo desde Expo Go en celular.
+- Documentar si Replit no permite mantener el proceso o si el QR no aparece.
+
+Ruta C — Replit Mobile Preview / Simulator:
+- Validar si está disponible en este Repl.
+- Documentar si no está disponible por tipo de proyecto, plan o configuración.
+
+No objetivos:
+- No corregir Supabase en este sprint.
+- No ejecutar smoke test Supabase.
+- No tocar RLS.
+- No agregar Neo4j.
+- No agregar matching.
+- No agregar features nuevas.
+- No hacer release/tag.
+- No romper mocks.
+- No convertir la app en web-only.
+- No eliminar soporte mobile.
+- No imprimir secrets.
+- No subir .env.
+
+Tarea 1 — Diagnóstico inicial
+
+Ejecutar:
+
+git status --short
+node -v
+npm -v
+npx -v
+npm run doctor:node
+npm run typecheck
+
+Documentar:
+- branch
+- estado git
+- node/npm
+- doctor:node
+- typecheck
+
+Si doctor:node advierte que Supabase URL está inválida, documentarlo como bloqueo de backend real, pero NO detener este sprint. La visualización debe poder funcionar con mocks.
+
+Tarea 2 — Revisar scripts de preview
+
+Revisar package.json.
+
+Asegurar scripts mínimos:
+
+"start": "expo start",
+"start:web": "expo start --web --port 5000",
+"start:web:clear": "expo start --web --port 5000 --clear",
+"start:go": "expo start --tunnel --go",
+"start:go:clear": "expo start --tunnel --go --clear",
+"typecheck": "tsc --noEmit"
+
+Si ya existen equivalentes, no duplicar.
+
+Si faltan, agregarlos.
+
+Importante:
+- start:web debe ser el comando para el panel Preview de Replit.
+- start:go debe ser el comando para celular con Expo Go.
+- No hacer que Run principal dependa de Supabase real.
+
+Tarea 3 — Revisar configuración Replit
+
+Revisar:
+
+.replit
+replit.nix
+scripts/start-replit-expo.js, si existe
+scripts/doctor-replit.js, si existe
+
+Objetivo:
+- El workflow “Start application” debe levantar preview web estable.
+- Comando preferido:
+  npx expo start --web --port 5000
+  o npm run start:web
+- No usar smoke tests como Run command.
+- No usar comandos interactivos que bloqueen el preview web si Replit no los maneja bien.
+
+Si .replit está mal configurado, ajustar.
+
+Tarea 4 — Hacer que web preview se vea mobile
+
+Implementar un contenedor web-only si hace falta.
+
+Objetivo visual:
+- En Replit Preview, la app debe verse como mock de teléfono.
+- Ancho recomendado: 390px a 430px.
+- Alto: 100vh.
+- Centrado.
+- Fondo externo neutro.
+- App adentro con borde/radio/sombra opcional.
+- En mobile real, debe ocupar pantalla completa normal.
+
+Revisar entry/layout global:
+- app/_layout.tsx
+- app/(tabs)/_layout.tsx
+- styles/global si existe
+- componentes layout raíz
+
+Si Platform.OS === "web", aplicar wrapper tipo phone frame.
+Si Platform.OS !== "web", mantener comportamiento nativo normal.
+
+No romper navegación Expo Router.
+
+Tarea 5 — Fallback web para mapas/componentes nativos
+
+Buscar componentes que puedan romper Expo Web:
+- MapView
+- Location
+- DateTimePicker
+- componentes nativos sin soporte web
+
+Si alguno rompe web preview:
+- Crear fallback web.
+- Ejemplo:
+  - mobile: mapa nativo
+  - web: lista de lugares/cards
+- No remover versión mobile.
+- No convertir app en web-only.
+
+Tarea 6 — Validar navegación visual
+
+En mocks, validar que se puede ver y navegar:
+
+Tabs principales:
+- Mapa
+- Lugares
+- Chats
+- Perfil
+
+Pantallas:
+- Lista de espacios cercanos
+- Detalle de lugar
+- Chat público del lugar
+- Grupos del lugar
+- Eventos del lugar
+- Mis grupos
+- Mis eventos
+- Moderation inbox, si está enlazado
+- Mis bloqueos
+- Group members/approval, si está enlazado
+
+Si alguna pantalla no está enlazada, agregar acceso mínimo temporal o documentar ruta.
+
+No agregar features nuevas; solo hacer navegable lo existente.
+
+Tarea 7 — Probar Web Preview
+
+Ejecutar:
+
+npm run start:web
+
+Si falla por cache:
+
+npm run start:web:clear
+
+Validar:
+- Preview abre.
+- Renderiza.
+- No pantalla blanca.
+- No error rojo.
+- No loop infinito.
+- No dependencia obligatoria de Supabase real.
+- Mocks funcionan.
+- Tabs visibles.
+- UI usable en tamaño mobile.
+
+Si falla:
+- documentar error exacto.
+- corregir fallback web o script.
+- volver a probar.
+
+Tarea 8 — Probar Expo Go
+
+Ejecutar:
+
+npm run start:go
+
+Validar:
+- aparece QR o tunnel URL.
+- el comando usa --tunnel.
+- Expo Go debería poder escanear el QR.
+- Si no se puede probar físicamente, documentar que queda pendiente de prueba en celular.
+- Si Replit no muestra QR correctamente, documentar alternativa.
+
+No dejar dos procesos Expo corriendo a la vez.
+
+Tarea 9 — Crear documentación de preview
+
+Crear o actualizar:
+
+docs/PREVIEW_SETUP.md
+
+Debe incluir:
+
+# Preview Setup
+
+Secciones:
+1. Objetivo.
+2. Modo 1: Replit Web Preview.
+3. Modo 2: Expo Go con tunnel.
+4. Modo 3: Replit mobile preview/simulator si disponible.
+5. Comandos.
+6. Qué hacer si aparece pantalla blanca.
+7. Qué hacer si Expo cache falla.
+8. Qué hacer si mapas/location no funcionan en web.
+9. Qué hacer si Supabase no está conectado.
+10. Qué sí valida el preview web.
+11. Qué NO valida el preview web.
+12. Checklist visual.
+
+Comandos:
+
+npm run start:web
+npm run start:web:clear
+npm run start:go
+npm run start:go:clear
+npm run typecheck
+
+Tarea 10 — Crear reporte del sprint
+
+Crear:
+
+docs/PREVIEW_SPRINT_REPORT.md
+
+Debe incluir:
+
+# Preview Sprint Report
+
+Secciones:
+1. Estado final.
+2. Replit Web Preview.
+3. Expo Go.
+4. Replit mobile simulator.
+5. Scripts agregados/modificados.
+6. Fallbacks web creados.
+7. Pantallas verificadas.
+8. Bugs visuales encontrados.
+9. Bugs corregidos.
+10. Bloqueadores.
+11. Próximo stage recomendado.
+
+Tarea 11 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run typecheck
+npm run start:web
+
+Si es viable:
+
+npm run start:go
+
+No dejar procesos duplicados.
+
+Tarea 12 — Git
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "chore: stabilize Replit preview workflow"
+
+Si Replit permite push:
+
+git push origin main
+
+Si no permite push:
+- reportar que el usuario debe usar Tools → Git → Push.
+
+No crear tag release.
+
+Criterios de aceptación:
+1. npm run typecheck pasa.
+2. npm run start:web abre preview en Replit.
+3. La app renderiza en layout mobile/responsive.
+4. Tabs principales son visibles.
+5. Pantallas principales son navegables.
+6. La app funciona con mocks si Supabase no está conectado.
+7. No hay pantalla blanca.
+8. No se rompe soporte mobile.
+9. npm run start:go está disponible para Expo Go.
+10. docs/PREVIEW_SETUP.md existe.
+11. docs/PREVIEW_SPRINT_REPORT.md existe.
+12. No se expusieron secrets.
+13. No se creó release/tag.
+
+Entrega final esperada:
+
+## Preview Sprint — Resultado
+
+### Estado
+- Replit Web Preview:
+- Mobile frame web:
+- Expo Go:
+- Replit simulator:
+- Mocks:
+- Supabase real:
+
+### Scripts
+- start:web:
+- start:web:clear:
+- start:go:
+- start:go:clear:
+
+### Validaciones
+- doctor:node:
+- typecheck:
+- start:web:
+- start:go:
+
+### Pantallas verificadas
+-
+
+### Fallbacks creados
+-
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Commit
+-
+
+### Próximo stage
+Si preview quedó estable:
+Etapa 1A-QA real con Supabase.
+
+Si preview sigue bloqueado:
+Preview Fix — resolver pantalla blanca, puerto, cache, router o fallback web.
