@@ -1,0 +1,392 @@
+Actúa como agente senior full-stack mobile para ParkChat / Aldea.
+
+Stage:
+Etapa 1A-QA — Conectar Supabase real, ejecutar smoke test y validar RLS
+
+Contexto:
+Proyecto: REACT-NATIVE-ParkChatApp
+Branch: main
+Workspace: Replit
+Origen GitHub: zentaker/REACT-NATIVE-ParkChatApp
+Fecha de referencia: 23-may-2026
+
+Estado actual:
+- Expo Web corre con:
+  npx expo start --web --port 5000
+- Preview web renderiza correctamente.
+- Typecheck pasa con 0 errores.
+- Post-merge hook funciona.
+- Etapa 0 cerrada.
+- Etapa 1A código cerrado.
+- Etapa 1B código cerrado.
+- Etapa 1C código cerrado.
+- Tasks #5 a #9 están en progreso en entornos aislados.
+- Backend Supabase real todavía NO está conectado porque EXPO_PUBLIC_SUPABASE_URL tenía un JWT por error.
+- EXPO_PUBLIC_SUPABASE_ANON_KEY sí está OK como JWT.
+- El usuario ya corrigió o está corrigiendo EXPO_PUBLIC_SUPABASE_URL en Replit Secrets.
+
+Objetivo de este stage:
+Pasar de mocks a Supabase real y validar el flujo mínimo funcional:
+
+registro/login → places reales → chat público por lugar → realtime con dos clientes → RLS básico
+
+No objetivos:
+- No agregar Neo4j.
+- No agregar matching.
+- No agregar feed global.
+- No agregar nuevas features fuera del MVP.
+- No crear tag release todavía.
+- No exponer secrets.
+- No imprimir valores de secrets.
+- No subir .env.
+- No usar SUPABASE_SERVICE_ROLE_KEY.
+- No romper los mocks; deben seguir como fallback si faltan variables.
+- No mergear tasks #5-#9 todavía salvo que el usuario lo pida.
+
+Primera tarea: validar secrets sin imprimir valores.
+
+Ejecutar:
+
+npm run doctor:node
+
+Validar:
+- EXPO_PUBLIC_SUPABASE_URL: set
+- EXPO_PUBLIC_SUPABASE_ANON_KEY: set
+- La URL debe ser parseable y empezar con https://
+- La URL no debe empezar con eyJhbGci
+- La anon key sí puede empezar con eyJhbGci
+
+Si EXPO_PUBLIC_SUPABASE_URL sigue siendo JWT:
+- Detenerse.
+- Reportar:
+  "EXPO_PUBLIC_SUPABASE_URL todavía está mal configurado. Debe ser https://apcdhwqfntujcwsbtfbu.supabase.co"
+- No continuar con Supabase real.
+
+Segunda tarea: reiniciar y confirmar que la app sale de mocks.
+
+Reiniciar workflow:
+
+npx expo start --web --port 5000
+
+Observar logs.
+
+Validar:
+- No debe aparecer warning de fallback a mocks.
+- Si aparece fallback a mocks, identificar causa exacta.
+- No imprimir secrets.
+
+Tercera tarea: revisar SQL Supabase.
+
+Revisar archivos:
+
+supabase/schema.sql
+supabase/policies.sql
+
+Confirmar que cubren:
+- profiles
+- places
+- user_places
+- place_messages
+- local_groups
+- group_members
+- group_messages
+- local_events
+- event_attendees
+- topic_tags
+- message_topic_tags
+- safety_reports
+- user_blocks
+- realtime publication para place_messages
+- RLS básico
+
+Crear o actualizar si falta:
+
+supabase/profiles-trigger.sql
+
+Debe crear profile automáticamente cuando se registra un usuario en auth.users.
+
+No ejecutar SQL desde Replit si no hay conexión administrativa segura.
+Preparar instrucciones para que el usuario ejecute los SQL en Supabase SQL Editor.
+
+Cuarta tarea: crear guía de aplicación SQL.
+
+Crear o actualizar:
+
+docs/SUPABASE_APPLY_SQL.md
+
+Debe indicar el orden exacto:
+
+1. Ejecutar supabase/schema.sql
+2. Ejecutar supabase/profiles-trigger.sql, si existe
+3. Ejecutar supabase/policies.sql
+4. Confirmar que place_messages está en supabase_realtime
+5. Confirmar que seed data existe o ejecutar seed si aplica
+
+Debe incluir:
+- Cómo saber que las tablas existen.
+- Cómo saber que RLS está activo.
+- Cómo saber que Realtime está publicado.
+- Qué errores comunes pueden aparecer.
+- Qué hacer si una policy bloquea inserts válidos.
+
+Quinta tarea: ejecutar smoke test manual guiado.
+
+Usar:
+
+docs/SMOKE_TEST.md
+
+Si está incompleto, actualizarlo.
+
+El smoke test debe validar:
+
+1. Abrir app en preview web.
+2. Registrar usuario A.
+3. Verificar que profile se crea.
+4. Login usuario A.
+5. Ver lugares reales desde Supabase.
+6. Entrar a Parque Kennedy u otro lugar seed.
+7. Abrir chat del lugar.
+8. Enviar mensaje.
+9. Confirmar que aparece en place_messages.
+10. Abrir segundo cliente/sesión.
+11. Login usuario B.
+12. Entrar al mismo lugar.
+13. Confirmar que el mensaje aparece.
+14. Usuario B responde.
+15. Usuario A recibe respuesta por realtime sin refresh.
+16. Confirmar deduplicación de mensajes.
+17. Confirmar que no hay fallback a mocks.
+
+Sexta tarea: validar RLS.
+
+Usar:
+
+docs/RLS_CHECKLIST.md
+
+Actualizar si falta.
+
+Validar como mínimo:
+- Usuario autenticado puede leer places públicos.
+- Usuario autenticado puede leer mensajes visibles.
+- Usuario autenticado puede insertar place_messages con su propio user_id.
+- Usuario NO puede insertar place_messages usando user_id de otro usuario.
+- Usuario puede leer perfiles básicos.
+- Usuario solo puede actualizar su propio profile.
+- Usuario puede crear reporte propio.
+- Usuario puede crear bloqueo propio.
+- Usuario no puede manipular reportes/bloqueos de otros.
+
+Si no es posible validar todo manualmente desde UI:
+- documentar qué se validó.
+- documentar qué queda pendiente.
+- proponer SQL o pasos para validarlo desde Supabase.
+
+Séptima tarea: revisar estado de Etapa 1B y 1C contra Supabase real.
+
+No implementar nuevas features.
+Solo revisar que lo ya hecho no rompa con backend real:
+
+Etapa 1B:
+- Crear grupo.
+- Editar grupo.
+- Borrar grupo.
+- Join/leave grupo.
+- Crear evento.
+- Editar evento.
+- Borrar evento.
+- RSVP.
+- Mis grupos.
+- Mis eventos.
+
+Etapa 1C:
+- Reportar usuario/mensaje.
+- Bloquear usuario.
+- Ver Mis bloqueos.
+- Filtrado client-side de bloqueados.
+- SafetyNotice contextual.
+
+Si algo falla por RLS:
+- documentar error exacto.
+- proponer ajuste mínimo en policies.sql.
+- no hacer bypass con service_role.
+
+Octava tarea: revisar tasks en progreso sin mergear todavía.
+
+Tareas actuales:
+#5 Rate limit chat de lugar
+#6 Notificar a moderación cuando llegan reportes nuevos
+#7 RSVP tal vez/no asisto
+#8 Aprobar miembros pendientes en grupos por aprobación
+#9 Selector fecha/hora amigable
+
+No mergear automáticamente.
+
+Crear o actualizar:
+
+docs/TASKS_IN_PROGRESS_QA_PLAN.md
+
+Para cada task indicar:
+- objetivo
+- archivos esperados
+- riesgo
+- cómo probar
+- criterio de merge
+- dependencia con Supabase real
+- si requiere RLS adicional
+
+Novena tarea: actualizar documentación de estado.
+
+Crear o actualizar:
+
+docs/REPLIT_CURRENT_STATUS.md
+
+Debe incluir:
+- fecha
+- branch
+- workflow
+- estado de preview web
+- typecheck
+- estado de Supabase real
+- si la app usa mocks o backend real
+- estado Etapa 0
+- estado Etapa 1A
+- estado Etapa 1B
+- estado Etapa 1C
+- tasks en progreso
+- bloqueadores
+- próximo stage
+
+Crear o actualizar:
+
+docs/ETAPA_1A_SUPABASE_REALTIME_QA.md
+
+Debe incluir:
+- configuración de secrets
+- validación de URL/anon key
+- SQL aplicado o pendiente
+- smoke test
+- realtime test
+- RLS test
+- bugs encontrados
+- fixes aplicados
+- estado final
+
+Actualizar:
+
+docs/ROADMAP.md
+docs/PRD_MVP.md
+docs/TECHNICAL_ARCHITECTURE.md
+
+Solo si hace falta reflejar que Etapas 1A, 1B y 1C están listas a nivel código, pero 1A necesita QA real con Supabase.
+
+Décima tarea: validaciones finales.
+
+Ejecutar:
+
+npm run doctor:node
+npm run typecheck
+
+Si el workflow está disponible:
+
+npx expo start --web --port 5000
+
+No dejar procesos duplicados.
+
+Revisar logs:
+- no fallback mocks si Supabase está correcto
+- no errores de URL inválida
+- no errores RLS inesperados durante smoke test
+
+Onceava tarea: Git.
+
+Ejecutar:
+
+git status --short
+git log --oneline -10
+
+Si hay cambios:
+
+git add .
+git commit -m "test: validate Supabase realtime smoke path"
+
+Intentar push solo si Replit/GitHub lo permite.
+Si el agente no puede hacer push por sandbox:
+- documentar que el usuario debe usar Tools → Git → Push.
+
+No crear tag v0.1.0 todavía.
+
+Criterios de aceptación:
+
+Este stage queda completo si:
+
+1. EXPO_PUBLIC_SUPABASE_URL es una URL válida.
+2. EXPO_PUBLIC_SUPABASE_ANON_KEY está seteada.
+3. npm run doctor:node pasa.
+4. npm run typecheck pasa.
+5. App no cae a mocks cuando Supabase está configurado.
+6. schema.sql/policies.sql/profiles-trigger.sql están listos o aplicados.
+7. docs/SUPABASE_APPLY_SQL.md existe.
+8. docs/SMOKE_TEST.md cubre registro, places y chat realtime.
+9. docs/RLS_CHECKLIST.md cubre validación hostil básica.
+10. Smoke test con Supabase real fue ejecutado o queda bloqueado con razón exacta.
+11. RLS fue validado o queda bloqueado con razón exacta.
+12. No se expusieron secrets.
+13. No se usó service_role en cliente.
+14. No se creó release/tag todavía.
+15. Se generó reporte final en docs/ETAPA_1A_SUPABASE_REALTIME_QA.md.
+
+Entrega final esperada:
+
+## Etapa 1A-QA — Resultado
+
+### Estado
+- Supabase real:
+- Mocks:
+- Smoke test:
+- Realtime:
+- RLS:
+- Release readiness:
+
+### Secrets
+- EXPO_PUBLIC_SUPABASE_URL: set/valid/invalid, sin imprimir valor
+- EXPO_PUBLIC_SUPABASE_ANON_KEY: set/missing, sin imprimir valor
+
+### SQL
+- schema.sql:
+- profiles-trigger.sql:
+- policies.sql:
+- seed:
+- realtime publication:
+
+### Validaciones
+- doctor:node:
+- typecheck:
+- preview web:
+- registro:
+- login:
+- places:
+- place chat:
+- realtime dos clientes:
+- reports/blocks:
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Commit
+-
+
+### Próximo stage
+Si smoke test + RLS pasan:
+Etapa 1D — QA de tasks #5-#9 y preparación de release v0.1.0.
+
+Si falla Supabase:
+Etapa 1A-Fix — corregir SQL/RLS/secrets según bloqueo.
+
+Si todo pasa y el usuario aprueba:
+Crear tag v0.1.0 para disparar release workflow.
