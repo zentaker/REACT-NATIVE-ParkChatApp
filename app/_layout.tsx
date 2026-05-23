@@ -24,9 +24,9 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
-          <Stack.Screen name="place" options={{ headerShown: false }} />
-          <Stack.Screen name="group" options={{ headerShown: false }} />
-          <Stack.Screen name="event" options={{ headerShown: false }} />
+          <Stack.Screen name="place/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="group/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>
