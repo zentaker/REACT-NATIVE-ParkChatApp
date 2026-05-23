@@ -77,7 +77,7 @@ create policy "authenticated users can read groups"
 on public.groups
 for select
 to authenticated
-using (visibility = 'public');
+using (access_level = 'public' or access_level is null);
 
 drop policy if exists "authenticated users can create groups" on public.groups;
 create policy "authenticated users can create groups"
@@ -121,7 +121,7 @@ with check (
       when exists (
         select 1 from public.groups g
         where g.id = group_members.group_id
-          and g.visibility in ('approval_required', 'invite_only')
+          and g.access_level in ('approval_required', 'invite_only')
       ) then 'pending'
       else 'active'
     end
@@ -252,7 +252,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select coalesce((select is_moderator from public.profiles where id = uid), false);
+  select coalesce((select role = 'moderator' from public.profiles where id = uid), false);
 $$;
 
 drop policy if exists "users can create reports" on public.reports;

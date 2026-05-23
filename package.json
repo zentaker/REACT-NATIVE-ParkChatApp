@@ -17,11 +17,15 @@
     "doctor:node": "node ./scripts/doctor-node.mjs",
     "doctor:node:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/doctor-node.ps1",
     "doctor:replit": "node ./scripts/doctor-replit.js",
+    "doctor:admin": "node ./scripts/doctor-admin-secrets.mjs",
+    "qa:seed": "node ./scripts/qa-seed.mjs",
+    "qa:smoke": "node ./scripts/qa-smoke.mjs",
     "replit:start": "node ./scripts/start-replit-expo.js web",
     "replit:web": "node ./scripts/start-replit-expo.js web",
     "replit:mobile": "node ./scripts/start-replit-expo.js mobile",
     "replit:lan": "node ./scripts/start-replit-expo.js lan",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "supabase:policies": "node ./scripts/print-policies-sql.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -48,6 +52,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
+    "pg": "^8.21.0",
     "typescript": "~5.8.3"
   }
 }

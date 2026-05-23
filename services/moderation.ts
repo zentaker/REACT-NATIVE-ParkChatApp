@@ -92,15 +92,16 @@ export type Report = {
 type ReportRow = {
   id: string;
   reporter_id: string;
-  target_type: string;
-  target_id: string;
+  reported_user_id?: string | null;
+  place_id?: string | null;
+  message_id?: string | null;
+  group_id?: string | null;
+  event_id?: string | null;
   reason: string;
   details: string | null;
   status: string | null;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  resolution_note: string | null;
   created_at: string;
+  updated_at?: string | null;
   reporter?: ProfileRow | ProfileRow[] | null;
 };
 
@@ -131,20 +132,30 @@ function normaliseStatus(value: string | null | undefined): ReportStatus {
   return "pending";
 }
 
+function deriveTarget(row: ReportRow): { targetType: ReportTargetType; targetId: string } {
+  if (row.message_id) return { targetType: "message", targetId: row.message_id };
+  if (row.reported_user_id) return { targetType: "profile", targetId: row.reported_user_id };
+  if (row.group_id) return { targetType: "group", targetId: row.group_id };
+  if (row.event_id) return { targetType: "event", targetId: row.event_id };
+  if (row.place_id) return { targetType: "place", targetId: row.place_id };
+  return { targetType: "place", targetId: row.id };
+}
+
 function mapReportRow(row: ReportRow): Report {
   const reporterRow = Array.isArray(row.reporter) ? row.reporter[0] : row.reporter;
+  const { targetType, targetId } = deriveTarget(row);
 
   return {
     id: row.id,
     reporterId: row.reporter_id,
-    targetType: row.target_type as ReportTargetType,
-    targetId: row.target_id,
+    targetType,
+    targetId,
     reason: row.reason,
     details: row.details,
     status: normaliseStatus(row.status),
-    reviewedBy: row.reviewed_by,
-    reviewedAt: row.reviewed_at,
-    resolutionNote: row.resolution_note,
+    reviewedBy: null,
+    reviewedAt: null,
+    resolutionNote: null,
     createdAt: row.created_at,
     reporter: reporterRow ? mapProfileRow(reporterRow) : null
   };
@@ -241,12 +252,18 @@ export async function reportContent(input: CreateReportInput): Promise<{ id: str
     throw new Error("You must be authenticated to report content.");
   }
 
+  const targetCol: Record<string, string> = {};
+  if (input.targetType === "message") targetCol.message_id = input.targetId;
+  else if (input.targetType === "profile") targetCol.reported_user_id = input.targetId;
+  else if (input.targetType === "group") targetCol.group_id = input.targetId;
+  else if (input.targetType === "event") targetCol.event_id = input.targetId;
+  else targetCol.place_id = input.targetId;
+
   const { data, error } = await supabase
     .from("reports")
     .insert({
       reporter_id: reporterId,
-      target_type: input.targetType,
-      target_id: input.targetId,
+      ...targetCol,
       reason,
       details: input.details ?? null
     })
@@ -385,7 +402,7 @@ export async function isCurrentUserModerator(): Promise<boolean> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("is_moderator")
+    .select("role")
     .eq("id", userId)
     .maybeSingle();
 
@@ -393,7 +410,7 @@ export async function isCurrentUserModerator(): Promise<boolean> {
     return false;
   }
 
-  return Boolean((data as { is_moderator?: boolean | null }).is_moderator);
+  return (data as { role?: string | null }).role === "moderator";
 }
 
 export type ListReportsOptions = {
@@ -412,7 +429,7 @@ export async function listReportsForModeration(options: ListReportsOptions = {})
   let query = supabase
     .from("reports")
     .select(
-      "id, reporter_id, target_type, target_id, reason, details, status, reviewed_by, reviewed_at, resolution_note, created_at, reporter:reporter_id(id, username, display_name, avatar_url, bio, safety_mode, is_moderator, created_at, updated_at)"
+      "id, reporter_id, reported_user_id, place_id, message_id, group_id, event_id, reason, details, status, created_at, updated_at, reporter:reporter_id(id, username, display_name, avatar_url, bio, safety_mode, created_at, updated_at)"
     )
     .order("created_at", { ascending: false })
     .limit(100);
@@ -459,22 +476,14 @@ export async function updateReportStatus(
     throw new Error("You must be authenticated to update a report.");
   }
 
-  const payload: Record<string, string | null> = {
-    status,
-    reviewed_by: reviewerId,
-    reviewed_at: new Date().toISOString()
-  };
-
-  if (resolutionNote !== undefined) {
-    payload.resolution_note = resolutionNote;
-  }
+  const payload: Record<string, string | null> = { status };
 
   const { data, error } = await supabase
     .from("reports")
     .update(payload)
     .eq("id", reportId)
     .select(
-      "id, reporter_id, target_type, target_id, reason, details, status, reviewed_by, reviewed_at, resolution_note, created_at, reporter:reporter_id(id, username, display_name, avatar_url, bio, safety_mode, is_moderator, created_at, updated_at)"
+      "id, reporter_id, reported_user_id, place_id, message_id, group_id, event_id, reason, details, status, created_at, updated_at, reporter:reporter_id(id, username, display_name, avatar_url, bio, safety_mode, created_at, updated_at)"
     )
     .single();
 

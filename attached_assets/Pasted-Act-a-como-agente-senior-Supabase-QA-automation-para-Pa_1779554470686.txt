@@ -1,0 +1,245 @@
+Actúa como agente senior Supabase QA automation para ParkChat / Aldea.
+
+Stage:
+Etapa 1A-QA Automation — desbloquear seed, usuarios QA y smoke test con service role server-only
+
+Contexto:
+El proyecto ya está conectado a Supabase real.
+doctor:node está OK.
+Typecheck está OK.
+Las 9 tablas existen.
+Mocks están desactivados.
+El seed está vacío.
+Auth QA está bloqueado por email confirmation/rate limit.
+
+El usuario agregó en Replit Secrets:
+
+SUPABASE_SERVICE_ROLE_KEY
+
+Esta key es server-only.
+Nunca debe usarse en código frontend.
+Nunca debe tener prefijo EXPO_PUBLIC.
+Nunca debe imprimirse.
+Nunca debe commitearse.
+Nunca debe aparecer en logs.
+
+Objetivo:
+Usar SUPABASE_SERVICE_ROLE_KEY solo en scripts Node administrativos para:
+1. validar admin secret
+2. insertar seed si places está vacío
+3. crear usuarios QA confirmados
+4. ejecutar smoke test real con usuarios normales
+5. validar RLS sin usar service_role para operaciones normales
+
+No objetivos:
+- No agregar features nuevas.
+- No exponer secrets.
+- No usar service_role en app/.
+- No usar service_role en components/.
+- No usar service_role en services cliente.
+- No desactivar RLS.
+- No crear tag release todavía.
+- No saltarse bugs reales usando admin.
+
+Tarea 1 — Validar secret admin de forma segura
+
+Crear o actualizar:
+
+scripts/doctor-admin-secrets.mjs
+
+Debe verificar:
+- SUPABASE_SERVICE_ROLE_KEY exists true/false
+- length
+- startsWith
+- nunca imprimir valor completo
+- confirmar que NO existe EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
+
+Ejecutar:
+
+node scripts/doctor-admin-secrets.mjs
+
+Si falta SUPABASE_SERVICE_ROLE_KEY:
+- detenerse.
+- reportar que falta el secret.
+
+Si existe EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY:
+- detenerse.
+- pedir eliminarlo.
+- reportar riesgo crítico.
+
+Tarea 2 — Crear cliente admin server-only
+
+Crear:
+
+scripts/lib/supabase-admin.mjs
+
+Debe leer:
+- EXPO_PUBLIC_SUPABASE_PROJECT_URL o EXPO_PUBLIC_SUPABASE_URL
+- SUPABASE_SERVICE_ROLE_KEY
+
+Debe crear cliente admin solo para scripts Node.
+No debe importarse desde app/, components/, lib/ cliente ni services cliente.
+
+Tarea 3 — Crear seed automatizado
+
+Crear:
+
+scripts/qa-seed.mjs
+
+Debe:
+- consultar places
+- si places está vacío, insertar:
+  - Parque Kennedy
+  - Barranco Plaza
+  - Cafe Cultural Miraflores
+  - Coworking Creativo
+- si places ya tiene datos, no duplicar
+- crear usuarios QA confirmados:
+  - qa.aldea.a@example.com
+  - qa.aldea.b@example.com
+- usar auth.admin.createUser con email_confirm true
+- asegurar profiles para esos usuarios si el trigger no los creó
+- no imprimir contraseñas reales
+- documentar si usa password dummy QA
+
+Tarea 4 — Crear smoke test automatizado
+
+Crear:
+
+scripts/qa-smoke.mjs
+
+Importante:
+Usar service_role solo para setup.
+Para validar app/RLS, usar clientes normales con anon key y login de usuarios QA.
+
+Debe validar:
+1. login usuario QA A
+2. login usuario QA B
+3. usuario A lee places
+4. usuario A inserta place_message con su propio user_id
+5. usuario B lee mensajes del mismo place
+6. usuario B responde
+7. usuario A lee respuesta
+8. usuario A intenta insertar mensaje con user_id de B y debe fallar
+9. usuario A crea report propio
+10. usuario A crea block propio
+
+Si algo falla:
+- documentar error exacto
+- no esconderlo usando service_role
+
+Tarea 5 — Validar realtime
+
+Si es viable en script:
+- suscribirse a place_messages
+- insertar mensaje con usuario B
+- confirmar recepción por usuario A
+
+Si no es estable en script:
+- documentar que realtime se valida manualmente en UI
+- no bloquear todo el QA por eso
+
+Tarea 6 — Documentar
+
+Crear o actualizar:
+
+docs/QA_AUTOMATION_SUPABASE.md
+docs/ETAPA_1A_SUPABASE_REALTIME_QA.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Incluir:
+- service_role usado solo en scripts
+- seed insertado
+- usuarios QA creados
+- smoke test
+- RLS
+- realtime
+- bloqueadores
+- release readiness
+
+Tarea 7 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run typecheck
+node scripts/doctor-admin-secrets.mjs
+node scripts/qa-seed.mjs
+node scripts/qa-smoke.mjs
+
+Confirmar:
+- typecheck 0 errores
+- places > 0
+- usuarios QA confirmados
+- login QA funciona
+- insert normal funciona
+- insert malicioso falla
+- reports/blocks funcionan
+- no secrets impresos
+- service_role no aparece en frontend
+
+Tarea 8 — Git
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "test: add Supabase QA automation scripts"
+
+Si Replit permite push:
+
+git push origin main
+
+No crear tag v0.1.0 todavía.
+
+Entrega final esperada:
+
+## Etapa 1A-QA Automation — Resultado
+
+### Estado
+- admin secret:
+- seed:
+- usuarios QA:
+- smoke test:
+- RLS:
+- realtime:
+- UI:
+- release readiness:
+
+### Seguridad
+- service_role usado solo en scripts:
+- service_role expuesto en frontend:
+- EXPO_PUBLIC_SERVICE_ROLE existe:
+- secrets impresos:
+
+### Validaciones
+- doctor:node:
+- doctor-admin-secrets:
+- typecheck:
+- qa-seed:
+- qa-smoke:
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Commit
+-
+
+### Próximo stage
+Si todo pasa:
+Etapa 1D — Release QA y preparación v0.1.0.
+
+Si falla RLS:
+Etapa 1A-RLS-Fix.
+
+Si falla realtime:
+Etapa 1A-Realtime-Fix.

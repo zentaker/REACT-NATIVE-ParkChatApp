@@ -152,7 +152,7 @@ export async function createGroup(input: CreateGroupInput): Promise<LocalGroup> 
       place_id: input.placeId,
       name,
       description,
-      visibility: accessLevel,
+      access_level: accessLevel,
       created_by: userId
     })
     .select("*")
@@ -201,7 +201,7 @@ export async function updateGroup(id: string, patch: UpdateGroupInput): Promise<
   const update: Record<string, unknown> = {};
   if (patch.name !== undefined) update.name = patch.name.trim();
   if (patch.description !== undefined) update.description = patch.description?.trim() || null;
-  if (patch.accessLevel !== undefined) update.visibility = patch.accessLevel;
+  if (patch.accessLevel !== undefined) update.access_level = patch.accessLevel;
 
   const { data, error } = await supabase.from("groups").update(update).eq("id", id).select("*").single();
 

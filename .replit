@@ -43,3 +43,8 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwY2Rod3FmbnR1amN3c2J0ZmJ1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ5NjM1NCwiZXhwIjoyMDk1MDcyMzU0fQ.WUYMtH2Eqd0yUZPHpxUS3AShac6qcdJSQbFhcl-99j4"
