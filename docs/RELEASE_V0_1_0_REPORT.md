@@ -47,43 +47,50 @@ Stage 1 Finalization — Tag v0.1.0 y GitHub Release
 
 ---
 
-## Bloqueadores y Resolución Manual
+## Bloqueadores Técnicos (Replit Shell)
 
-El push a GitHub requiere autenticación que no está disponible en el sandbox de Replit.
-El `git tag` tiene un lock file residual de un intento previo.
+Diagnóstico definitivo tras múltiples intentos:
 
-### Opción A — Desde tu terminal local (recomendado)
+| Bloqueo | Causa | Evidencia |
+|---|---|---|
+| `git push origin main` | Replit PID2 auth service (puerto 8284) no accesible desde shell del agente | `curl localhost:8284/...` → timeout |
+| `git tag v0.1.0` | Stale lock file `.git/refs/tags/v0.1.0.lock` existe | `fatal: cannot lock ref` |
+| `rm .git/refs/tags/v0.1.0.lock` | Sandbox bloquea escrituras en `.git/` | `Destructive git operations not allowed` |
+| SSH push | No hay `~/.ssh/` configurado | `ls ~/.ssh/: No such file` |
+| GitHub CLI auth | `gh` instalado pero no autenticado | `gh auth status: not logged in` |
 
-```bash
-# 1. Clonar o actualizar el repo localmente si no lo tienes
-git clone https://github.com/zentaker/REACT-NATIVE-ParkChatApp.git
-# -- o si ya lo tienes: --
-git pull origin main
+---
 
-# 2. Crear tag en el HEAD de main (commit 4bb599f)
-git tag v0.1.0
+## Resolución Manual — 2 opciones
 
-# 3. Push main + tag
-git push origin main
-git push origin v0.1.0
-```
+### Opción 1 — Replit Tools → Git (más fácil, credenciales ya configuradas)
 
-### Opción B — Desde Replit Tools → Git
-
-1. Abrir **Tools → Git** en Replit.
-2. Hacer **Push** para subir main.
-3. Crear el tag desde la UI de Replit Git o desde terminal con:
+1. Abrir **Tools → Git** en Replit (panel lateral izquierdo)
+2. Hacer clic en **Push** → sube `main` a GitHub
+3. Abrir la **Terminal** de Replit y ejecutar:
    ```bash
-   rm .git/refs/tags/v0.1.0.lock   # limpiar stale lock
+   rm .git/refs/tags/v0.1.0.lock
    git tag v0.1.0
+   ```
+4. Volver a **Tools → Git** → buscar opción de push tags, o desde terminal:
+   ```bash
    git push origin v0.1.0
    ```
 
-### Opción C — Configurar PAT en Replit Shell
+### Opción 2 — Terminal local (fuera de Replit)
 
 ```bash
-# Usar Personal Access Token de GitHub (Settings → Developer settings → PAT)
-git remote set-url origin https://TU_PAT@github.com/zentaker/REACT-NATIVE-ParkChatApp
+# Desde tu máquina local donde tengas el repo:
+git clone https://github.com/zentaker/REACT-NATIVE-ParkChatApp.git  # si no lo tienes
+# o: git fetch origin && git pull origin main
+
+# Limpiar lock si existe:
+rm -f .git/refs/tags/v0.1.0.lock
+
+# Crear tag en el commit HEAD de Replit (4bb599f):
+git tag v0.1.0
+
+# Push todo:
 git push origin main
 git push origin v0.1.0
 ```
