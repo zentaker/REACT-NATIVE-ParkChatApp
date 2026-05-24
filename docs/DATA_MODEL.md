@@ -73,9 +73,56 @@ profiles.id -> event_rsvps.user_id
 - Un usuario puede asistir a un evento.
 - Un usuario puede bloquear o reportar a otro.
 
-## Futuro Paso Hacia Grafo Social
+## Stage 2A — Tablas Graph-ready (Postgres proto-grafo)
 
-Cuando existan datos reales, estas relaciones se pueden proyectar a Neo4j:
+Agregadas sin romper las 9 tablas base. Modelan relaciones sociales sin Neo4j.
+
+### user_places
+Historial de relación usuario-lugar. Registrado automáticamente al abrir Place Detail.
+- `relationship_type`: visited / active / regular / organizer
+- `visit_count`, `last_seen_at`
+- **RLS**: usuario solo lee/escribe sus propios registros
+
+### topic_tags
+Tags canónicos (hashtags). Creados la primera vez que se usa un hashtag en chat.
+- `slug`: versión normalizada (lowercase, slugificada)
+
+### message_topic_tags
+Junction: mensaje ↔ topic_tag. Creada al etiquetar mensajes con hashtags.
+
+### place_topics
+Peso agregado de temas por lugar. Se actualiza con cada mensaje etiquetado.
+- `weight`: suma de usos del tema en el lugar
+
+### user_topic_interests
+Intereses del usuario, derivados de hashtags usados o agregados manualmente.
+- `source`: manual / hashtag / derived
+
+### user_connections
+Señales débiles de co-participación (tabla creada, lógica de inserción en Stage 2B).
+- `source`: place / group / event
+
+## Relaciones Stage 2A
+
+```txt
+profiles.id -> user_places.user_id
+places.id -> user_places.place_id
+
+place_messages.id -> message_topic_tags.message_id
+topic_tags.id -> message_topic_tags.topic_tag_id
+
+places.id -> place_topics.place_id
+topic_tags.id -> place_topics.topic_tag_id
+
+profiles.id -> user_topic_interests.user_id
+topic_tags.id -> user_topic_interests.topic_tag_id
+
+profiles.id -> user_connections.user_a / user_b
+```
+
+## Futuro Paso Hacia Grafo Social (Stage 3)
+
+Cuando el grafo sea suficientemente complejo, estas relaciones se migran a Neo4j:
 
 ```txt
 (:User)-[:VISITED]->(:Place)

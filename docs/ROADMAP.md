@@ -307,8 +307,16 @@ Cada etapa tiene objetivo, alcance, entregables, criterios de aceptación, depen
 | Reportar y bloquear (persistencia) | 1A |
 | Reportar y bloquear (acciones en UI) | 1C |
 | Niveles de acceso / safety notices | 0 (UI) / 1C (reglas operativas) |
-| Mapa real de espacios cercanos | 2 |
+| Mapa real de espacios cercanos | 2B |
 | Reacciones / quotes / presencia agregada | 3 |
+| Graph-ready schema (user_places, topic_tags, place_topics) | 2A ✅ |
+| Hashtag extraction + topic tagging en mensajes | 2A ✅ |
+| Place Detail: temas activos + visitas propias | 2A ✅ |
+| Profile: intereses + agregar interés manual | 2A ✅ |
+| Geofencing real + mapa de lugares cercanos | 2B |
+| user_connections automáticas (grupo/evento join) | 2B |
+| Edge Functions para tagging server-side | 2B |
+| Neo4j sync + traversals multi-hop | 3 |
 
 ---
 

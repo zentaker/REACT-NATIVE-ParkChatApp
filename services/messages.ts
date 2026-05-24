@@ -3,6 +3,7 @@ import { mockProfiles } from "../data/mockProfiles";
 import { MOCK_USER_ID } from "../lib/constants";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { getCurrentUserId } from "./auth";
+import { extractHashtags, tagMessage } from "./graph";
 import type { ModerationStatus, PlaceMessage, Profile, SafetyMode } from "../types";
 
 export const MESSAGE_RATE_LIMIT_MAX = 5;
@@ -214,7 +215,16 @@ export async function sendPlaceMessage(placeId: string, body: string): Promise<P
 
   recordSentMessage(trimmedBody);
 
-  return mapMessageRow(data as PlaceMessageRow);
+  const message = mapMessageRow(data as PlaceMessageRow);
+
+  const hashtags = extractHashtags(trimmedBody);
+  if (hashtags.length > 0) {
+    tagMessage(message.id, placeId, hashtags).catch((err) => {
+      console.warn("[graph] tagMessage background error:", err?.message);
+    });
+  }
+
+  return message;
 }
 
 export function subscribeToPlaceMessages(

@@ -30,7 +30,10 @@
     "supabase:apply:policies": "node scripts/apply-supabase-sql.mjs --file supabase/policies.sql",
     "supabase:apply:triggers": "node scripts/apply-supabase-sql.mjs --file supabase/triggers.sql",
     "supabase:apply:seed": "node scripts/apply-supabase-sql.mjs --file supabase/seed.sql",
-    "supabase:apply:all": "node scripts/apply-supabase-sql.mjs --all"
+    "supabase:apply:all": "node scripts/apply-supabase-sql.mjs --all",
+    "supabase:apply:graph": "node scripts/apply-supabase-sql.mjs --file supabase/graph-ready.sql && node scripts/apply-supabase-sql.mjs --file supabase/graph-ready-policies.sql",
+    "supabase:check:graph": "node scripts/check-graph-ready.mjs",
+    "qa:graph": "node scripts/qa-graph-ready.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

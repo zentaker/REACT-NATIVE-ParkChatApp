@@ -8,7 +8,9 @@ import { LoadingState } from "../../../components/LoadingState";
 import { PlaceHeader } from "../../../components/PlaceHeader";
 import { SafetyNotice } from "../../../components/SafetyNotice";
 import { UI_COLORS } from "../../../lib/constants";
+import { getPlaceTopics, upsertUserPlace } from "../../../services/graph";
 import { getPlaceById } from "../../../services/places";
+import type { PlaceTopic } from "../../../types/graph";
 import type { Place } from "../../../types";
 
 export default function PlaceDetailScreen() {
@@ -16,6 +18,8 @@ export default function PlaceDetailScreen() {
   const placeId = String(id ?? "");
   const [place, setPlace] = useState<Place | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [topics, setTopics] = useState<PlaceTopic[]>([]);
+  const [visitCount, setVisitCount] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -27,6 +31,18 @@ export default function PlaceDetailScreen() {
       .finally(() => {
         if (isMounted) setIsLoading(false);
       });
+
+    upsertUserPlace(placeId, "visited")
+      .then((userPlace) => {
+        if (isMounted && userPlace) setVisitCount(userPlace.visitCount);
+      })
+      .catch(() => {});
+
+    getPlaceTopics(placeId, 8)
+      .then((nextTopics) => {
+        if (isMounted) setTopics(nextTopics);
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -77,11 +93,44 @@ export default function PlaceDetailScreen() {
               </View>
             </View>
 
-            <View style={styles.communityCard}>
-              <Text style={styles.sectionTitle}>Estado de comunidad</Text>
-              <Text style={styles.communityText}>
-                Este lugar valida el flujo base del MVP: lugar fisico, conversacion local, grupo o evento asociado.
-              </Text>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Temas activos</Text>
+              {topics.length === 0 ? (
+                <Text style={styles.emptyHint}>
+                  Aun no hay temas. Usa hashtags en el chat (#tennis, #musica) para crear temas del lugar.
+                </Text>
+              ) : (
+                <View style={styles.topicList}>
+                  {topics.map((topic) => (
+                    <View key={topic.id} style={styles.topicChip}>
+                      <Text style={styles.topicName}>#{topic.topicTag?.name ?? topic.topicTagId.slice(0, 8)}</Text>
+                      <Text style={styles.topicWeight}>{topic.weight}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Tu relacion con este lugar</Text>
+              {visitCount !== null ? (
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{visitCount}</Text>
+                    <Text style={styles.statLabel}>visitas tuyas</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{topics.length}</Text>
+                    <Text style={styles.statLabel}>temas activos</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{place.groupsCount ?? 0}</Text>
+                    <Text style={styles.statLabel}>grupos</Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.emptyHint}>Conecta Supabase para ver tu historial en este lugar.</Text>
+              )}
             </View>
           </>
         ) : null}
@@ -142,12 +191,12 @@ const styles = StyleSheet.create({
     color: UI_COLORS.textMuted,
     fontSize: 13
   },
-  communityCard: {
+  sectionCard: {
     backgroundColor: UI_COLORS.surface,
     borderColor: UI_COLORS.border,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 8,
+    gap: 12,
     padding: 16
   },
   sectionTitle: {
@@ -155,9 +204,58 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900"
   },
-  communityText: {
+  emptyHint: {
     color: UI_COLORS.textMuted,
     fontSize: 14,
     lineHeight: 20
+  },
+  topicList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  topicChip: {
+    alignItems: "center",
+    backgroundColor: UI_COLORS.surfaceMuted,
+    borderRadius: 20,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6
+  },
+  topicName: {
+    color: UI_COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  topicWeight: {
+    backgroundColor: UI_COLORS.primary,
+    borderRadius: 10,
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "900",
+    minWidth: 20,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    textAlign: "center"
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 0
+  },
+  statItem: {
+    alignItems: "center",
+    flex: 1,
+    gap: 4
+  },
+  statValue: {
+    color: UI_COLORS.primary,
+    fontSize: 22,
+    fontWeight: "900"
+  },
+  statLabel: {
+    color: UI_COLORS.textMuted,
+    fontSize: 12,
+    textAlign: "center"
   }
 });

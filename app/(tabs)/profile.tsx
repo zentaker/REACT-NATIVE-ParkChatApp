@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState } from "../../components/EmptyState";
@@ -9,8 +9,10 @@ import { SafetyNotice } from "../../components/SafetyNotice";
 import { useAuth } from "../../hooks/useAuth";
 import { UI_COLORS } from "../../lib/constants";
 import { signOut } from "../../services/auth";
+import { getUserTopicInterests, upsertUserTopicInterest } from "../../services/graph";
 import { isCurrentUserModerator } from "../../services/moderation";
 import { getCurrentProfile } from "../../services/profile";
+import type { UserTopicInterest } from "../../types/graph";
 import type { Profile } from "../../types";
 
 export default function ProfileScreen() {
@@ -19,6 +21,9 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
+  const [interests, setInterests] = useState<UserTopicInterest[]>([]);
+  const [newInterest, setNewInterest] = useState("");
+  const [isAddingInterest, setIsAddingInterest] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,6 +44,12 @@ export default function ProfileScreen() {
         if (isMounted) setIsModerator(false);
       });
 
+    getUserTopicInterests()
+      .then((data) => {
+        if (isMounted) setInterests(data);
+      })
+      .catch(() => {});
+
     return () => {
       isMounted = false;
     };
@@ -58,6 +69,27 @@ export default function ProfileScreen() {
       Alert.alert("No se pudo cerrar sesion", error instanceof Error ? error.message : "Intentalo otra vez.");
     } finally {
       setIsSigningOut(false);
+    }
+  }
+
+  async function handleAddInterest() {
+    const trimmed = newInterest.trim().replace(/^#/, "");
+    if (!trimmed) return;
+
+    setIsAddingInterest(true);
+    try {
+      const result = await upsertUserTopicInterest(trimmed, "manual");
+      if (result) {
+        setInterests((prev) => {
+          const exists = prev.find((i) => i.topicTagId === result.topicTagId);
+          if (exists) return prev.map((i) => (i.topicTagId === result.topicTagId ? result : i));
+          return [result, ...prev];
+        });
+        setNewInterest("");
+      }
+    } catch {
+    } finally {
+      setIsAddingInterest(false);
     }
   }
 
@@ -87,6 +119,46 @@ export default function ProfileScreen() {
             </View>
           </View>
         ) : null}
+
+        <View style={styles.interestsCard}>
+          <Text style={styles.sectionTitle}>Mis intereses</Text>
+          {interests.length === 0 ? (
+            <Text style={styles.interestsEmpty}>
+              Aun no tienes intereses. Usa hashtags en el chat o agrega uno aqui.
+            </Text>
+          ) : (
+            <View style={styles.tagList}>
+              {interests.map((interest) => (
+                <View key={interest.id} style={styles.tagChip}>
+                  <Text style={styles.tagName}>#{interest.topicTag?.name ?? interest.topicTagId.slice(0, 8)}</Text>
+                  {interest.weight > 1 ? (
+                    <Text style={styles.tagWeight}>{interest.weight}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          )}
+          <View style={styles.addInterestRow}>
+            <TextInput
+              editable={!isAddingInterest}
+              onChangeText={setNewInterest}
+              onSubmitEditing={handleAddInterest}
+              placeholder="#musica, #tenis..."
+              placeholderTextColor={UI_COLORS.textMuted}
+              returnKeyType="done"
+              style={styles.interestInput}
+              value={newInterest}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={isAddingInterest || !newInterest.trim()}
+              onPress={handleAddInterest}
+              style={({ pressed }) => [styles.addButton, (pressed || isAddingInterest) && styles.addButtonPressed]}
+            >
+              <Text style={styles.addButtonText}>{isAddingInterest ? "..." : "Agregar"}</Text>
+            </Pressable>
+          </View>
+        </View>
 
         <SafetyNotice message="Puedes preparar bloqueos y reportes sin exponer tu ubicacion exacta en la interfaz." />
 
@@ -217,6 +289,87 @@ const styles = StyleSheet.create({
     color: UI_COLORS.primary,
     fontSize: 13,
     fontWeight: "900"
+  },
+  interestsCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderColor: UI_COLORS.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16
+  },
+  sectionTitle: {
+    color: UI_COLORS.text,
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  interestsEmpty: {
+    color: UI_COLORS.textMuted,
+    fontSize: 14,
+    lineHeight: 20
+  },
+  tagList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  tagChip: {
+    alignItems: "center",
+    backgroundColor: UI_COLORS.surfaceMuted,
+    borderRadius: 20,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6
+  },
+  tagName: {
+    color: UI_COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  tagWeight: {
+    backgroundColor: UI_COLORS.primary,
+    borderRadius: 10,
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "900",
+    minWidth: 20,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    textAlign: "center"
+  },
+  addInterestRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10
+  },
+  interestInput: {
+    backgroundColor: UI_COLORS.surfaceMuted,
+    borderColor: UI_COLORS.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    color: UI_COLORS.text,
+    flex: 1,
+    fontSize: 14,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  addButton: {
+    alignItems: "center",
+    backgroundColor: UI_COLORS.primary,
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 16
+  },
+  addButtonPressed: {
+    opacity: 0.7
+  },
+  addButtonText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "800"
   },
   actions: {
     gap: 10
