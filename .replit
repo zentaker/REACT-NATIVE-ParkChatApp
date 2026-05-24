@@ -1,5 +1,5 @@
 entrypoint = "app.json"
-modules = ["nodejs-20"]
+modules = ["nodejs-20", "python-3.11"]
 run = "npm run replit:start"
 
 [nix]
