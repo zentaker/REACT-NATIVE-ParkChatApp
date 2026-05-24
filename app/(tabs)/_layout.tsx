@@ -39,6 +39,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="map" options={{ title: "Mapa", tabBarIcon: tabIcon("map-outline") }} />
       <Tabs.Screen name="places" options={{ title: "Lugares", tabBarIcon: tabIcon("location-outline") }} />
       <Tabs.Screen name="chats" options={{ title: "Chats", tabBarIcon: tabIcon("chatbubbles-outline") }} />
+      <Tabs.Screen name="notifications" options={{ title: "Avisos", tabBarIcon: tabIcon("notifications-outline") }} />
       <Tabs.Screen name="profile" options={{ title: "Perfil", tabBarIcon: tabIcon("person-circle-outline") }} />
     </Tabs>
   );

@@ -1,0 +1,539 @@
+Actúa como agente senior full-stack mobile + social product engineer para ParkChat / Aldea.
+
+Stage:
+Stage 2D — Social polish, notifications, counters and graph insight ranking
+
+Contexto:
+Stage 1 está cerrado y v0.1.0 fue publicado.
+Stage 2A graph-ready layer está completo.
+Stage 2B geospatial nearby layer está completo.
+Stage 2C mobile map + strict geofence está completo.
+
+Estado confirmado:
+- typecheck: 0 errores.
+- qa:doctor: OK.
+- qa:smoke: 23/23 PASS.
+- supabase:check:graph: 33/33 PASS.
+- qa:graph: 23/23 PASS.
+- qa:geo: 12/12 PASS.
+- qa:geofence: 15/15 PASS.
+- react-native-maps 1.20.1 integrado.
+- PlacesMapView mobile implementado.
+- PlacesMapView.web.tsx fallback implementado.
+- strict geofence configurable vía EXPO_PUBLIC_STRICT_GEOFENCE_POSTING.
+- QA credentials centralizadas en scripts/lib/qa-config.mjs.
+- No hay credenciales QA hardcodeadas en scripts QA.
+- La app mantiene privacidad: no guarda coordenadas exactas del usuario.
+
+Objetivo de Stage 2D:
+Hacer que ParkChat/Aldea se sienta más social, viva y útil usando la base existente:
+
+1. Notificaciones internas/in-app.
+2. Contadores de eventos, grupos, RSVP y reportes.
+3. Ranking de temas activos por lugar.
+4. Actividad reciente por lugar.
+5. Mejoras de cards y estados visuales.
+6. Dashboard mínimo de moderación más claro.
+7. Preparar base para push notifications futuras sin implementarlas todavía.
+8. Mantener Stage 1, 2A, 2B y 2C intactos.
+
+No objetivos:
+- No implementar push notifications reales todavía.
+- No agregar Neo4j todavía.
+- No agregar matching romántico.
+- No agregar feed global.
+- No agregar IA generativa.
+- No crear nuevo release/tag todavía.
+- No romper RLS.
+- No guardar ubicación exacta.
+- No exponer presencia individual sensible.
+- No hacer rediseño total.
+- No tocar secrets.
+- No desactivar RLS.
+- No romper web preview.
+
+Tarea 0 — Crear rama segura
+
+Ejecutar:
+
+git status --short
+git branch
+git log --oneline -5
+
+Si el working tree está limpio:
+
+git checkout -b stage-2d-social-polish
+
+Si la rama ya existe, usarla.
+
+Si Git está bloqueado:
+- documentar.
+- trabajar en checkpoint Replit.
+- no tocar tag v0.1.0.
+
+Tarea 1 — Validaciones base
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run qa:doctor
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+npm run qa:geofence
+
+Confirmar:
+- todo sigue PASS.
+- no secrets impresos.
+- app no usa mocks.
+- RLS sigue activo.
+
+Si algo falla:
+- detener Stage 2D.
+- reportar bloqueo.
+- aplicar solo fix mínimo.
+
+Tarea 2 — Auditar estado social actual
+
+Revisar:
+- services/events.ts
+- services/groups.ts
+- services/messages.ts
+- services/moderation.ts
+- services/graph.ts
+- services/places.ts
+- app/(tabs)/chats.tsx
+- app/(tabs)/profile.tsx
+- app/place/[id]/index.tsx
+- app/place/[id]/chat.tsx
+- app/place/[id]/groups.tsx
+- app/place/[id]/events.tsx
+- app/group/[id]/*
+- app/event/[id]/*
+- app/moderation/inbox.tsx
+- components/EventCard.tsx
+- components/GroupCard.tsx
+- components/PlaceCard.tsx
+- docs/ROADMAP.md
+- docs/DATA_MODEL.md
+
+Crear:
+
+docs/STAGE_2D_SOCIAL_POLISH_PLAN.md
+
+Debe incluir:
+1. Qué datos sociales existen.
+2. Qué contadores faltan.
+3. Qué notificaciones internas faltan.
+4. Qué insights graph-ready pueden rankearse.
+5. Qué se implementa en Stage 2D.
+6. Qué se deja para push notifications reales.
+7. Riesgos.
+8. Criterios de aceptación.
+
+Tarea 3 — Diseñar tabla de notificaciones internas
+
+Crear:
+
+supabase/notifications.sql
+
+Debe ser idempotente y no destructivo.
+
+Crear tabla:
+
+in_app_notifications
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- user_id uuid not null references profiles(id) on delete cascade
+- actor_id uuid references profiles(id) on delete set null
+- place_id uuid references places(id) on delete set null
+- group_id uuid references groups(id) on delete set null
+- event_id uuid references events(id) on delete set null
+- report_id uuid references reports(id) on delete set null
+- type text not null
+- title text not null
+- body text
+- read_at timestamptz
+- created_at timestamptz default now()
+
+Tipos sugeridos:
+- group_join_request
+- group_member_approved
+- group_member_rejected
+- event_rsvp_changed
+- report_created
+- report_status_changed
+- geofence_blocked_post
+- topic_trending
+
+Agregar índices:
+- in_app_notifications(user_id, created_at desc)
+- in_app_notifications(user_id, read_at)
+- in_app_notifications(type)
+- in_app_notifications(group_id)
+- in_app_notifications(event_id)
+- in_app_notifications(place_id)
+
+Activar RLS.
+
+Crear:
+
+supabase/notifications-policies.sql
+
+Policies:
+- usuario puede leer sus propias notificaciones.
+- usuario puede marcar sus propias notificaciones como leídas.
+- usuario no puede leer notificaciones de otros.
+- inserts administrativos o controlados por funciones/scripts.
+- si se permite insert desde cliente, restringir user_id = auth.uid() solo para casos propios; preferible crear por scripts/services seguros.
+
+No implementar push notifications reales.
+
+Tarea 4 — Scripts DB para notifications
+
+Actualizar package.json:
+
+"supabase:apply:notifications": "node scripts/apply-supabase-sql.mjs --file supabase/notifications.sql && node scripts/apply-supabase-sql.mjs --file supabase/notifications-policies.sql",
+"supabase:check:notifications": "node scripts/check-notifications.mjs",
+"qa:notifications": "node scripts/qa-notifications.mjs"
+
+Crear:
+
+scripts/check-notifications.mjs
+
+Debe validar:
+- tabla existe.
+- RLS activo.
+- policies existen.
+- índices principales existen.
+- no secrets impresos.
+
+Tarea 5 — Servicio de notificaciones internas
+
+Crear:
+
+types/notifications.ts
+services/notifications.ts
+
+Funciones:
+- getMyNotifications()
+- getUnreadNotificationCount()
+- markNotificationRead(notificationId)
+- markAllNotificationsRead()
+- createNotification(input) si corresponde solo para acciones permitidas
+- createGroupJoinRequestNotification(...)
+- createGroupApprovalNotification(...)
+- createEventRsvpNotification(...)
+- createReportNotification(...)
+
+Si crear notificaciones desde cliente choca con RLS:
+- hacerlo solo donde user_id corresponde.
+- o usar script/admin solo para QA.
+- documentar limitación.
+
+No usar service_role en frontend.
+
+Tarea 6 — Integrar notificaciones en flujos existentes
+
+Integrar notificaciones internas en:
+
+1. Solicitud de ingreso a grupo:
+- cuando usuario B solicita ingreso a grupo approval_required
+- crear notificación para owner del grupo:
+  “Nueva solicitud para unirse a tu grupo”
+
+2. Aprobación/rechazo de miembro:
+- cuando owner aprueba/rechaza
+- crear notificación para solicitante:
+  “Tu solicitud fue aprobada/rechazada”
+
+3. RSVP:
+- cuando usuario cambia RSVP en evento
+- crear notificación para creador del evento:
+  “Alguien cambió su asistencia”
+
+4. Reportes:
+- cuando se crea report
+- crear notificación para moderadores si se puede resolver lista de moderators
+- si no, documentar que moderation inbox sigue siendo fuente primaria
+
+No romper si falla notificación.
+La acción principal debe completarse aunque la notificación falle, pero debe loggear error seguro.
+
+Tarea 7 — UI notificaciones
+
+Crear o actualizar:
+
+app/(tabs)/notifications.tsx
+
+Si no existe tab:
+- agregar acceso desde perfil o chats.
+- no rehacer toda la navegación.
+
+UI debe mostrar:
+- lista de notificaciones.
+- unread badge/count.
+- mark as read.
+- empty state.
+- loading/error states.
+
+Actualizar Profile o Tabs para mostrar:
+- badge de notificaciones no leídas si es razonable.
+
+Tarea 8 — Contadores sociales
+
+Mejorar servicios/cards para mostrar contadores reales:
+
+Places:
+- número de grupos del lugar.
+- número de eventos próximos.
+- número de temas activos.
+- número de mensajes recientes si viable.
+
+Groups:
+- member_count real o calculado.
+- pending count para owner.
+- access_level visible.
+
+Events:
+- count going.
+- count interested.
+- count cancelled/not_going.
+- estado RSVP del usuario.
+
+Moderation:
+- reportes open/reviewing.
+- unread/new reports count si viable.
+
+Implementar con queries eficientes.
+No hacer N+1 excesivo si se puede evitar.
+
+Si member_count sync automático sigue deferred:
+- calcular count en query o mantener limitation documentada.
+
+Tarea 9 — Ranking de graph insights
+
+Mejorar:
+
+services/graph.ts
+
+Agregar:
+- getTopTopicsForPlace(placeId, limit)
+- getTrendingTopics(limit)
+- getPlaceSocialSummary(placeId)
+- getUserGraphSummary(userId)
+
+Ranking simple:
+- place_topics.weight desc
+- last_activity_at desc
+- eventos próximos
+- grupos activos
+- mensajes recientes
+
+UI:
+- Place Detail muestra “Temas activos” mejor rankeados.
+- Map/Places cards pueden mostrar 1-2 topics top.
+- Profile muestra intereses + lugares frecuentes si ya existe user_places.
+
+No mostrar datos sensibles de otros usuarios.
+
+Tarea 10 — Dashboard moderación polish
+
+Actualizar:
+
+app/moderation/inbox.tsx
+
+Mejorar:
+- count de reports open.
+- filtros por status.
+- marcar reviewing/resolved/dismissed si ya existe.
+- empty state.
+- error state.
+- loading state.
+- role = moderator validado.
+- no acceso para usuario normal.
+
+No construir admin panel enorme.
+
+Tarea 11 — QA notifications/counters
+
+Crear:
+
+scripts/qa-notifications.mjs
+
+Debe validar:
+1. usuario B solicita ingreso a grupo.
+2. owner recibe notificación.
+3. owner aprueba.
+4. usuario B recibe notificación.
+5. usuario cambia RSVP.
+6. creador evento recibe notificación.
+7. mark as read funciona.
+8. usuario no puede leer notificaciones de otro.
+9. notification count funciona.
+10. report notification o moderation inbox sigue funcionando.
+
+No usar service_role para validar operaciones normales.
+Usar admin solo para setup de usuarios/roles si hace falta.
+
+Tarea 12 — Documentación
+
+Crear o actualizar:
+
+docs/STAGE_2D_SOCIAL_POLISH_PLAN.md
+docs/STAGE_2D_SOCIAL_POLISH_REPORT.md
+docs/DATA_MODEL.md
+docs/ROADMAP.md
+docs/TECHNICAL_ARCHITECTURE.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Documentar:
+- tabla notifications.
+- RLS.
+- eventos que generan notifications.
+- contadores.
+- ranking de insights.
+- límites.
+- push notifications reales quedan para Stage 3 o posterior.
+
+Tarea 13 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run qa:doctor
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+npm run qa:geofence
+npm run supabase:apply:notifications
+npm run supabase:check:notifications
+npm run qa:notifications
+npm run typecheck
+
+Orden recomendado:
+1. baseline validations.
+2. apply notifications.
+3. check notifications.
+4. qa notifications.
+5. typecheck final.
+
+Si algo falla:
+- documentar.
+- fix mínimo.
+- reintentar.
+
+Tarea 14 — Git/checkpoint
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "feat: add social notifications and insight counters"
+
+Si Git funciona:
+
+git push origin stage-2d-social-polish
+
+Si Git está bloqueado:
+- documentar checkpoint Replit.
+- indicar pasos manuales.
+
+No crear release tag.
+
+Criterios de aceptación:
+
+Stage 2D queda completo si:
+
+1. Stage 1 baseline sigue pasando qa:smoke.
+2. Stage 2A/B/C validations siguen pasando.
+3. in_app_notifications existe.
+4. RLS de notifications funciona.
+5. notifications service existe.
+6. UI de notifications existe o acceso desde perfil existe.
+7. group join approval crea notificaciones.
+8. RSVP crea notificaciones o queda documentado si se difiere.
+9. reports/moderation tienen mejor tracking.
+10. counters se muestran en grupos/eventos/lugares donde aplica.
+11. graph insights tienen ranking básico.
+12. qa:notifications pasa.
+13. typecheck pasa.
+14. no push notifications reales todavía.
+15. docs actualizadas.
+
+Entrega final esperada:
+
+## Stage 2D — Social Polish Resultado
+
+### Estado
+- Stage 1 baseline:
+- Stage 2A graph:
+- Stage 2B geo:
+- Stage 2C map/geofence:
+- Notifications schema:
+- Notifications UI:
+- Counters:
+- Graph ranking:
+- Moderation polish:
+- qa:notifications:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- qa:doctor:
+- typecheck:
+- qa:smoke:
+- check graph:
+- qa:graph:
+- qa:geo:
+- qa:geofence:
+- apply notifications:
+- check notifications:
+- qa:notifications:
+
+### UI nueva
+-
+
+### DB nueva
+-
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Known limitations
+-
+
+### Próximo stage
+Si todo pasa:
+Stage 2E — onboarding, empty-state polish, NomadTable-inspired UX refinement and pilot readiness.
+
+Si falla notifications:
+Stage 2D-Notifications-Fix.
+
+Si falla counters:
+Stage 2D-Counters-Fix.
+
+Si falla moderation:
+Stage 2D-Moderation-Fix.

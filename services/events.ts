@@ -2,6 +2,7 @@ import { mockEvents } from "../data/mockEvents";
 import { MOCK_USER_ID } from "../lib/constants";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { getCurrentUserId } from "./auth";
+import { createEventRsvpNotification } from "./notifications";
 import type { AccessLevel, EventAttendee, EventAttendeeStatus, EventSourceType, LocalEvent } from "../types";
 
 type EventRow = {
@@ -316,7 +317,32 @@ export async function setRsvpStatus(eventId: string, status: EventAttendeeStatus
     throw new Error(error?.message ?? "No se pudo guardar tu respuesta.");
   }
 
-  return mapRsvpRow(data as RsvpRow);
+  const attendee = mapRsvpRow(data as RsvpRow);
+
+  // Fire-and-forget: notify event creator (do not block return)
+  void (async () => {
+    try {
+      const { data: eventRow } = await supabase
+        .from("events")
+        .select("created_by, title, place_id")
+        .eq("id", eventId)
+        .maybeSingle();
+      const row = eventRow as { created_by: string | null; title: string; place_id: string | null } | null;
+      if (row?.created_by && row.created_by !== userId) {
+        await createEventRsvpNotification({
+          eventCreatorUserId: row.created_by,
+          eventId,
+          eventTitle: row.title,
+          rsvpStatus: status,
+          placeId: row.place_id
+        });
+      }
+    } catch {
+      // notification failure is non-fatal
+    }
+  })();
+
+  return attendee;
 }
 
 export async function listEventAttendees(eventId: string): Promise<EventAttendee[]> {

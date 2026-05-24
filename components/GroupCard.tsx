@@ -6,19 +6,29 @@ import type { LocalGroup } from "../types";
 type GroupCardProps = {
   group: LocalGroup;
   onPress?: () => void;
+  pendingCount?: number;
 };
 
-export function GroupCard({ group, onPress }: GroupCardProps) {
+export function GroupCard({ group, onPress, pendingCount }: GroupCardProps) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       <View style={styles.headerRow}>
         <Text style={styles.name}>{group.name}</Text>
-        <Text style={styles.access}>{ACCESS_LEVEL_LABELS[group.accessLevel]}</Text>
+        <View style={styles.headerRight}>
+          {pendingCount != null && pendingCount > 0 ? (
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingText}>{pendingCount} pendiente{pendingCount === 1 ? "" : "s"}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.access}>{ACCESS_LEVEL_LABELS[group.accessLevel]}</Text>
+        </View>
       </View>
-      <Text numberOfLines={2} style={styles.description}>
-        {group.description}
-      </Text>
-      <Text style={styles.memberCount}>{group.memberCount} miembros</Text>
+      {group.description ? (
+        <Text numberOfLines={2} style={styles.description}>
+          {group.description}
+        </Text>
+      ) : null}
+      <Text style={styles.memberCount}>{group.memberCount} miembro{group.memberCount === 1 ? "" : "s"}</Text>
     </Pressable>
   );
 }
@@ -41,10 +51,28 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: "space-between"
   },
+  headerRight: {
+    alignItems: "flex-end",
+    flexShrink: 0,
+    gap: 6
+  },
   name: {
     color: UI_COLORS.text,
     flex: 1,
     fontSize: 17,
+    fontWeight: "800"
+  },
+  pendingBadge: {
+    backgroundColor: "#fdf0eb",
+    borderColor: UI_COLORS.coral + "44",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 4
+  },
+  pendingText: {
+    color: UI_COLORS.coral,
+    fontSize: 11,
     fontWeight: "800"
   },
   access: {

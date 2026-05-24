@@ -36,7 +36,10 @@
     "qa:graph": "node scripts/qa-graph-ready.mjs",
     "qa:geo": "node scripts/qa-geospatial.mjs",
     "qa:geofence": "node scripts/qa-geofence.mjs",
-    "qa:doctor": "node scripts/doctor-qa-secrets.mjs"
+    "qa:doctor": "node scripts/doctor-qa-secrets.mjs",
+    "supabase:apply:notifications": "node scripts/apply-supabase-sql.mjs --file supabase/notifications.sql && node scripts/apply-supabase-sql.mjs --file supabase/notifications-policies.sql",
+    "supabase:check:notifications": "node scripts/check-notifications.mjs",
+    "qa:notifications": "node scripts/qa-notifications.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

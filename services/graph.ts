@@ -523,6 +523,92 @@ export async function getRelatedTopicsForPlace(placeId: string): Promise<UserTop
   return (data as UserTopicInterestRow[]).map(mapUserTopicInterest);
 }
 
+export async function getTopTopicsForPlace(placeId: string, limit = 5): Promise<PlaceTopic[]> {
+  return getPlaceTopics(placeId, limit);
+}
+
+export async function getTrendingTopics(limit = 10): Promise<PlaceTopic[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+
+  const { data, error } = await supabase
+    .from("place_topics")
+    .select("*, topic_tags(*)")
+    .order("weight", { ascending: false })
+    .order("last_activity_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn("[graph] getTrendingTopics error:", error.message);
+    return [];
+  }
+  return (data as PlaceTopicRow[]).map(mapPlaceTopic);
+}
+
+export type PlaceSocialSummary = {
+  groupsCount: number;
+  eventsCount: number;
+  activeMembersCount: number;
+  topTopics: PlaceTopic[];
+  recentActivityAt: string | null;
+};
+
+export async function getPlaceSocialSummary(placeId: string): Promise<PlaceSocialSummary> {
+  const topics = await getPlaceTopics(placeId, 5);
+
+  let groupsCount = 0;
+  let eventsCount = 0;
+  let activeMembersCount = 0;
+
+  if (isSupabaseConfigured && supabase) {
+    const [gc, ec, mc] = await Promise.all([
+      supabase.from("groups").select("*", { count: "exact", head: true }).eq("place_id", placeId),
+      supabase.from("events").select("*", { count: "exact", head: true }).eq("place_id", placeId),
+      supabase.from("user_places").select("*", { count: "exact", head: true }).eq("place_id", placeId)
+    ]);
+    groupsCount = gc.count ?? 0;
+    eventsCount = ec.count ?? 0;
+    activeMembersCount = mc.count ?? 0;
+  }
+
+  const recentActivityAt = topics.length > 0 ? topics[0].lastActivityAt : null;
+  return { groupsCount, eventsCount, activeMembersCount, topTopics: topics, recentActivityAt };
+}
+
+export type UserGraphSummary = {
+  placesVisited: number;
+  topInterests: UserTopicInterest[];
+  connectionsCount: number;
+};
+
+export async function getUserGraphSummary(userId?: string): Promise<UserGraphSummary> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { placesVisited: 0, topInterests: [], connectionsCount: 0 };
+  }
+
+  const targetUserId = userId ?? (await getCurrentUserId());
+  if (!targetUserId) return { placesVisited: 0, topInterests: [], connectionsCount: 0 };
+
+  const [placesResult, interestsResult, connectionsResult] = await Promise.all([
+    supabase.from("user_places").select("*", { count: "exact", head: true }).eq("user_id", targetUserId),
+    supabase
+      .from("user_topic_interests")
+      .select("*, topic_tags(*)")
+      .eq("user_id", targetUserId)
+      .order("weight", { ascending: false })
+      .limit(5),
+    supabase
+      .from("user_connections")
+      .select("*", { count: "exact", head: true })
+      .or(`user_a.eq.${targetUserId},user_b.eq.${targetUserId}`)
+  ]);
+
+  return {
+    placesVisited: placesResult.count ?? 0,
+    topInterests: ((interestsResult.data ?? []) as UserTopicInterestRow[]).map(mapUserTopicInterest),
+    connectionsCount: connectionsResult.count ?? 0
+  };
+}
+
 export async function getPlaceGraphInsights(placeId: string): Promise<PlaceGraphInsights> {
   const [topics, myRelationship, myRelatedTopics] = await Promise.all([
     getPlaceTopics(placeId, 8),

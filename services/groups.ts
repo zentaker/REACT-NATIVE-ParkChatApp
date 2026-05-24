@@ -3,6 +3,10 @@ import { mockProfiles } from "../data/mockProfiles";
 import { MOCK_USER_ID } from "../lib/constants";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { getCurrentUserId } from "./auth";
+import {
+  createGroupApprovalNotification,
+  createGroupJoinRequestNotification
+} from "./notifications";
 import type {
   AccessLevel,
   GroupMember,
@@ -276,7 +280,18 @@ export async function joinGroup(groupId: string): Promise<GroupMember> {
     throw new Error(error?.message ?? "No se pudo unir al grupo.");
   }
 
-  return mapMemberRow(data as GroupMemberRow);
+  const member = mapMemberRow(data as GroupMemberRow);
+
+  if (member.status === "pending" && group?.createdBy) {
+    createGroupJoinRequestNotification({
+      ownerUserId: group.createdBy,
+      groupId,
+      groupName: group.name,
+      placeId: group.placeId ?? null
+    }).catch(() => {});
+  }
+
+  return member;
 }
 
 export async function leaveGroup(groupId: string): Promise<void> {
@@ -443,7 +458,17 @@ async function setMembershipStatus(
 }
 
 export async function approveGroupMember(groupId: string, userId: string): Promise<void> {
+  const group = isSupabaseConfigured && supabase ? await getGroupById(groupId) : null;
   await setMembershipStatus(groupId, userId, "active");
+  if (group) {
+    createGroupApprovalNotification({
+      requesterUserId: userId,
+      groupId,
+      groupName: group.name,
+      approved: true,
+      placeId: group.placeId ?? null
+    }).catch(() => {});
+  }
 }
 
 export async function rejectGroupMember(groupId: string, userId: string): Promise<void> {
@@ -456,6 +481,8 @@ export async function rejectGroupMember(groupId: string, userId: string): Promis
     return;
   }
 
+  const group = await getGroupById(groupId);
+
   const { error } = await supabase
     .from("group_members")
     .delete()
@@ -464,5 +491,15 @@ export async function rejectGroupMember(groupId: string, userId: string): Promis
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (group) {
+    createGroupApprovalNotification({
+      requesterUserId: userId,
+      groupId,
+      groupName: group.name,
+      approved: false,
+      placeId: group.placeId ?? null
+    }).catch(() => {});
   }
 }
