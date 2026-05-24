@@ -39,7 +39,10 @@
     "qa:doctor": "node scripts/doctor-qa-secrets.mjs",
     "supabase:apply:notifications": "node scripts/apply-supabase-sql.mjs --file supabase/notifications.sql && node scripts/apply-supabase-sql.mjs --file supabase/notifications-policies.sql",
     "supabase:check:notifications": "node scripts/check-notifications.mjs",
-    "qa:notifications": "node scripts/qa-notifications.mjs"
+    "qa:notifications": "node scripts/qa-notifications.mjs",
+    "supabase:apply:analytics": "node scripts/apply-supabase-sql.mjs --file supabase/analytics.sql && node scripts/apply-supabase-sql.mjs --file supabase/analytics-policies.sql",
+    "supabase:check:analytics": "node scripts/check-analytics.mjs",
+    "qa:analytics": "node scripts/qa-analytics.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

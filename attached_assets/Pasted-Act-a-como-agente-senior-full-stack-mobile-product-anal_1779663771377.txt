@@ -1,0 +1,500 @@
+Actúa como agente senior full-stack mobile + product analytics engineer para ParkChat / Aldea.
+
+Stage:
+Stage 2F — Pilot Analytics, Retention Loops and Product Feedback
+
+Contexto:
+Stage 1 está cerrado y v0.1.0 fue publicado.
+Stage 2A graph-ready layer está completo.
+Stage 2B geospatial nearby layer está completo.
+Stage 2C mobile map + strict geofence está completo.
+Stage 2D social polish + notifications + counters + graph ranking está completo.
+Stage 2E UX polish + onboarding + pilot readiness está completo.
+
+Estado esperado:
+- Supabase real operativo.
+- RLS operativo.
+- Realtime operativo.
+- qa:smoke PASS.
+- qa:graph PASS.
+- qa:geo PASS.
+- qa:geofence PASS.
+- qa:notifications PASS.
+- typecheck 0 errores.
+- onboarding/polish UX listo.
+- docs/PILOT_READINESS.md existe.
+- docs/UX_QA_CHECKLIST.md existe.
+- app lista para piloto pequeño.
+
+Objetivo de Stage 2F:
+Preparar ParkChat/Aldea para piloto real con métricas, feedback y loops de retención.
+
+El producto debe poder responder:
+1. ¿Qué lugares generan más actividad?
+2. ¿Qué usuarios vuelven?
+3. ¿Qué chats generan conversación?
+4. ¿Qué grupos/eventos convierten mejor?
+5. ¿Qué temas están emergiendo?
+6. ¿Dónde se traban los usuarios?
+7. ¿Qué feedback dejan?
+8. ¿Qué señales indican retención?
+
+No objetivos:
+- No agregar Neo4j todavía.
+- No agregar IA generativa.
+- No implementar push notifications reales todavía.
+- No agregar monetización.
+- No agregar matching romántico.
+- No crear feed global.
+- No romper RLS.
+- No guardar ubicación exacta del usuario.
+- No exponer datos sensibles.
+- No crear release/tag todavía.
+- No rediseñar toda la UI.
+
+Tarea 0 — Crear rama segura
+
+Ejecutar:
+
+git status --short
+git branch
+git log --oneline -5
+
+Si el working tree está limpio:
+
+git checkout -b stage-2f-pilot-analytics
+
+Si la rama ya existe, usarla.
+
+Si Git está bloqueado:
+- documentar.
+- trabajar en checkpoint Replit.
+
+Tarea 1 — Validaciones base
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run qa:doctor
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+npm run qa:geofence
+npm run supabase:check:notifications
+npm run qa:notifications
+
+Confirmar:
+- todo PASS.
+- no secrets impresos.
+- app no usa mocks.
+- RLS sigue activo.
+
+Si algo falla:
+- detener Stage 2F.
+- aplicar solo fix mínimo.
+- no construir analytics encima de base rota.
+
+Tarea 2 — Auditar eventos actuales del producto
+
+Revisar flujos:
+- auth/register/login
+- place view
+- place chat view
+- message sent
+- group created
+- group joined
+- group approval requested
+- group approval accepted/rejected
+- event created
+- RSVP changed
+- report created
+- block created
+- notification read
+- topic created
+- hashtag used
+- user_place updated
+- geofence denied/allowed
+
+Crear:
+
+docs/STAGE_2F_ANALYTICS_PLAN.md
+
+Debe incluir:
+1. eventos a medir.
+2. métricas de piloto.
+3. qué se mide en DB.
+4. qué se deja para herramientas externas.
+5. privacidad.
+6. RLS.
+7. criterios de aceptación.
+
+Tarea 3 — Crear schema de analytics interno
+
+Crear:
+
+supabase/analytics.sql
+
+Debe ser idempotente y no destructivo.
+
+Crear tabla:
+
+product_events
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- user_id uuid references profiles(id) on delete set null
+- event_name text not null
+- place_id uuid references places(id) on delete set null
+- group_id uuid references groups(id) on delete set null
+- app_event_id uuid references events(id) on delete set null
+- topic_tag_id uuid references topic_tags(id) on delete set null
+- metadata jsonb not null default '{}'
+- session_id text
+- platform text
+- created_at timestamptz not null default now()
+
+Índices:
+- product_events(user_id, created_at desc)
+- product_events(event_name, created_at desc)
+- product_events(place_id, created_at desc)
+- product_events(group_id, created_at desc)
+- product_events(app_event_id, created_at desc)
+- product_events(created_at desc)
+
+Activar RLS.
+
+Crear:
+
+supabase/analytics-policies.sql
+
+Policies:
+- usuario autenticado puede insertar eventos propios con user_id = auth.uid().
+- usuario no puede insertar eventos para otro user_id.
+- usuario normal no puede leer todos los analytics.
+- usuario puede leer sus propios eventos si hace falta.
+- moderador/admin puede leer analytics agregados si se implementa.
+- evitar exposición de eventos individuales de terceros.
+
+No guardar coordenadas exactas.
+No guardar secrets.
+No guardar PII innecesaria.
+
+Tarea 4 — Scripts DB analytics
+
+Actualizar package.json:
+
+"supabase:apply:analytics": "node scripts/apply-supabase-sql.mjs --file supabase/analytics.sql && node scripts/apply-supabase-sql.mjs --file supabase/analytics-policies.sql",
+"supabase:check:analytics": "node scripts/check-analytics.mjs",
+"qa:analytics": "node scripts/qa-analytics.mjs"
+
+Crear:
+
+scripts/check-analytics.mjs
+
+Debe validar:
+- product_events existe.
+- RLS activo.
+- policies existen.
+- índices básicos existen.
+- no secrets impresos.
+
+Tarea 5 — Servicio de analytics cliente
+
+Crear:
+
+types/analytics.ts
+services/analytics.ts
+
+Funciones:
+- trackEvent(eventName, payload)
+- trackPlaceViewed(placeId)
+- trackMessageSent(placeId)
+- trackGroupCreated(placeId, groupId)
+- trackGroupJoined(groupId)
+- trackEventCreated(placeId, eventId)
+- trackRsvpChanged(eventId, status)
+- trackReportCreated(reportId)
+- trackBlockCreated(blockedUserId)
+- trackNotificationRead(notificationId)
+- trackTopicUsed(topicTagId, placeId)
+- trackGeofenceBlocked(placeId)
+
+Reglas:
+- analytics nunca debe bloquear acción principal.
+- si falla trackEvent, solo log seguro.
+- no imprimir metadata sensible.
+- no guardar ubicación exacta.
+- metadata debe ser pequeña y segura.
+
+Tarea 6 — Integrar analytics en flujos
+
+Integrar trackEvent en:
+- abrir detalle de lugar.
+- abrir chat.
+- enviar mensaje.
+- crear grupo.
+- unirse a grupo.
+- solicitar aprobación.
+- crear evento.
+- RSVP.
+- reportar.
+- bloquear.
+- leer notificación.
+- hashtag/topic usado.
+- geofence bloquea posting.
+
+No sobre-instrumentar.
+No romper flujos existentes.
+
+Tarea 7 — Feedback de piloto
+
+Crear tabla:
+
+pilot_feedback
+
+Puede ir en supabase/analytics.sql o archivo aparte.
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- user_id uuid references profiles(id) on delete set null
+- place_id uuid references places(id) on delete set null
+- rating integer check (rating between 1 and 5)
+- category text
+- message text
+- created_at timestamptz default now()
+
+RLS:
+- usuario autenticado puede crear feedback propio.
+- usuario puede leer su propio feedback.
+- moderador/admin puede leer todos si corresponde.
+
+Crear:
+- services/feedback.ts
+- types/feedback.ts
+
+UI mínima:
+- botón “Dar feedback” en perfil o settings.
+- modal/screen simple con rating + categoría + mensaje.
+- submit.
+- empty/success state.
+
+Categorías sugeridas:
+- bug
+- confusing
+- safety
+- location
+- chat
+- groups
+- events
+- other
+
+Tarea 8 — Pilot dashboard básico
+
+Crear pantalla interna:
+
+app/pilot/dashboard.tsx
+
+Debe estar protegida para role = moderator/admin o, si no hay roles suficientes, documentar como internal-only.
+
+Mostrar:
+- total users aproximado si viable.
+- events últimos 7 días por tipo.
+- places con más activity.
+- mensajes enviados.
+- grupos creados.
+- eventos creados.
+- RSVP count.
+- report count.
+- feedback count.
+- topics trending.
+
+Si queries complejas son demasiado para Stage 2F:
+- mostrar métricas simples.
+- documentar limitaciones.
+
+No exponer datos sensibles ni coordenadas.
+
+Tarea 9 — Retention loops sin push real
+
+Implementar loops internos usando in-app notifications ya existentes:
+
+- si usuario es owner y tiene pending group requests, mostrar CTA.
+- si usuario creó evento y tiene RSVP, mostrar aviso.
+- si un lugar tiene topic trending, mostrar en lugar.
+- si usuario no tiene intereses, sugerir agregar intereses.
+- si usuario está cerca de lugar activo, mostrar “lugares activos cerca” solo en cliente.
+
+No implementar push notifications reales.
+No enviar emails.
+
+Tarea 10 — QA analytics
+
+Crear:
+
+scripts/qa-analytics.mjs
+
+Debe validar:
+1. product_events existe.
+2. usuario QA puede insertar evento propio.
+3. usuario QA no puede insertar evento para otro user_id.
+4. trackEvent funciona.
+5. pilot_feedback insert funciona.
+6. feedback ajeno no es editable.
+7. métricas básicas pueden consultarse con permisos correctos.
+8. no se guardan coordenadas exactas en metadata de prueba.
+9. analytics failure no rompe acción principal.
+
+Tarea 11 — Documentación
+
+Crear o actualizar:
+
+docs/STAGE_2F_ANALYTICS_PLAN.md
+docs/STAGE_2F_ANALYTICS_REPORT.md
+docs/PILOT_READINESS.md
+docs/ROADMAP.md
+docs/TECHNICAL_ARCHITECTURE.md
+docs/DATA_MODEL.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Documentar:
+- eventos instrumentados.
+- métricas de piloto.
+- privacidad.
+- feedback.
+- dashboard.
+- known limitations.
+- próximo stage.
+
+Tarea 12 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run qa:doctor
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+npm run qa:geofence
+npm run supabase:check:notifications
+npm run qa:notifications
+npm run supabase:apply:analytics
+npm run supabase:check:analytics
+npm run qa:analytics
+npm run typecheck
+
+Si algo falla:
+- documentar.
+- fix mínimo.
+- reintentar.
+
+Tarea 13 — Git/checkpoint
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "feat: add pilot analytics and feedback loops"
+
+Si Git funciona:
+
+git push origin stage-2f-pilot-analytics
+
+Si Git está bloqueado:
+- documentar checkpoint Replit.
+- indicar pasos manuales.
+
+No crear release tag.
+
+Criterios de aceptación:
+
+Stage 2F queda completo si:
+
+1. Todas las validaciones previas siguen pasando.
+2. product_events existe con RLS.
+3. pilot_feedback existe con RLS.
+4. services/analytics.ts existe.
+5. services/feedback.ts existe.
+6. eventos clave están instrumentados.
+7. feedback UI existe.
+8. pilot dashboard básico existe o queda internal-only documentado.
+9. qa:analytics pasa.
+10. no se guarda ubicación exacta.
+11. analytics no rompe flujos principales.
+12. docs actualizadas.
+
+Entrega final esperada:
+
+## Stage 2F — Pilot Analytics + Feedback Resultado
+
+### Estado
+- Stage 1 baseline:
+- Stage 2A graph:
+- Stage 2B geo:
+- Stage 2C map/geofence:
+- Stage 2D notifications:
+- Analytics schema:
+- Feedback schema:
+- Analytics service:
+- Feedback UI:
+- Pilot dashboard:
+- Retention loops:
+- qa:analytics:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- qa:doctor:
+- typecheck:
+- qa:smoke:
+- check graph:
+- qa:graph:
+- qa:geo:
+- qa:geofence:
+- check notifications:
+- qa:notifications:
+- apply analytics:
+- check analytics:
+- qa:analytics:
+
+### DB nueva
+-
+
+### UI nueva
+-
+
+### Eventos instrumentados
+-
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Bloqueadores
+-
+
+### Known limitations
+-
+
+### Próximo stage
+Si todo pasa:
+Stage 2G — Expo Go mobile pilot validation and v0.2.0 release candidate.
+
+Si falla analytics:
+Stage 2F-Analytics-Fix.
+
+Si falla feedback:
+Stage 2F-Feedback-Fix.
+
+Si falla dashboard:
+Stage 2F-Dashboard-Fix.

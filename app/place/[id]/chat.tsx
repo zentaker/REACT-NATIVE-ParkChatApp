@@ -30,6 +30,13 @@ import {
 } from "../../../services/location";
 import { getPlaceById } from "../../../services/places";
 import { upsertUserPlace } from "../../../services/graph";
+import {
+  trackChatOpened,
+  trackMessageSent,
+  trackReportCreated,
+  trackBlockCreated,
+  trackGeofenceBlocked
+} from "../../../services/analytics";
 import { getCurrentProfile } from "../../../services/profile";
 import type { Place } from "../../../types";
 import type { PlaceMessage, Profile } from "../../../types";
@@ -97,6 +104,7 @@ export default function PlaceChatScreen() {
     });
 
     upsertUserPlace(placeId, "active").catch(() => {});
+    trackChatOpened(placeId);
 
     getLocationPermissionStatus()
       .then(async (status) => {
@@ -132,6 +140,7 @@ export default function PlaceChatScreen() {
         const message = await sendPlaceMessage(placeId, body);
         sentIdsRef.current.add(message.id);
         setMessages((current) => replaceOptimistic(current, optimistic.id, message));
+        trackMessageSent(placeId);
       } catch (error) {
         setMessages((current) => current.filter((item) => item.id !== optimistic.id));
         if (error instanceof MessageRateLimitError) {
@@ -159,6 +168,7 @@ export default function PlaceChatScreen() {
         details: details || null
       });
       setReportTarget(null);
+      trackReportCreated();
       Alert.alert("Reporte enviado", "Gracias. Lo revisaremos. Tu identidad no se comparte con la persona reportada.");
     } catch (error) {
       Alert.alert("No se pudo reportar", error instanceof Error ? error.message : "Intentalo otra vez.");
@@ -188,6 +198,7 @@ export default function PlaceChatScreen() {
             try {
               await blockUser(userId);
               markBlocked(userId);
+              trackBlockCreated();
               Alert.alert("Usuario bloqueado", "Sus mensajes quedan ocultos al instante.");
             } catch (error) {
               Alert.alert("No se pudo bloquear", error instanceof Error ? error.message : "Intentalo otra vez.");

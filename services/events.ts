@@ -3,6 +3,7 @@ import { MOCK_USER_ID } from "../lib/constants";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { getCurrentUserId } from "./auth";
 import { createEventRsvpNotification } from "./notifications";
+import { trackEventCreated, trackRsvpChanged } from "./analytics";
 import type { AccessLevel, EventAttendee, EventAttendeeStatus, EventSourceType, LocalEvent } from "../types";
 
 type EventRow = {
@@ -213,6 +214,8 @@ export async function createEvent(input: CreateEventInput): Promise<LocalEvent> 
     .from("event_rsvps")
     .upsert({ event_id: event.id, user_id: userId, status: "going" }, { onConflict: "event_id,user_id" });
 
+  trackEventCreated(placeId ?? event.placeId ?? "", event.id);
+
   return event;
 }
 
@@ -318,6 +321,8 @@ export async function setRsvpStatus(eventId: string, status: EventAttendeeStatus
   }
 
   const attendee = mapRsvpRow(data as RsvpRow);
+
+  trackRsvpChanged(eventId, status);
 
   // Fire-and-forget: notify event creator (do not block return)
   void (async () => {

@@ -236,6 +236,25 @@ export default function ProfileScreen() {
           </Pressable>
         ) : null}
 
+        {isModerator ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/pilot/dashboard" as never)}
+            style={styles.moderatorButton}
+          >
+            <Text style={styles.moderatorIcon}>📊</Text>
+            <Text style={styles.moderatorText}>Panel de piloto</Text>
+          </Pressable>
+        ) : null}
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/feedback" as never)}
+          style={styles.feedbackButton}
+        >
+          <Text style={styles.feedbackText}>💬 Dar feedback del piloto</Text>
+        </Pressable>
+
         <Pressable
           accessibilityRole="button"
           disabled={isSigningOut}
@@ -497,5 +516,20 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6
+  },
+  feedbackButton: {
+    alignItems: "center",
+    backgroundColor: UI_COLORS.surface,
+    borderColor: UI_COLORS.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 16
+  },
+  feedbackText: {
+    color: UI_COLORS.primary,
+    fontSize: 14,
+    fontWeight: "700"
   }
 });

@@ -4,6 +4,11 @@ import { MOCK_USER_ID } from "../lib/constants";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { getCurrentUserId } from "./auth";
 import {
+  trackGroupCreated,
+  trackGroupJoined,
+  trackGroupApprovalRequested
+} from "./analytics";
+import {
   createGroupApprovalNotification,
   createGroupJoinRequestNotification
 } from "./notifications";
@@ -175,6 +180,8 @@ export async function createGroup(input: CreateGroupInput): Promise<LocalGroup> 
       { onConflict: "group_id,user_id" }
     );
 
+  trackGroupCreated(group.placeId, group.id);
+
   return group;
 }
 
@@ -289,6 +296,9 @@ export async function joinGroup(groupId: string): Promise<GroupMember> {
       groupName: group.name,
       placeId: group.placeId ?? null
     }).catch(() => {});
+    trackGroupApprovalRequested(groupId);
+  } else {
+    trackGroupJoined(groupId);
   }
 
   return member;

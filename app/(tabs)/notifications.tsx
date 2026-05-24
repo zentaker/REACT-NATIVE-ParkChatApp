@@ -11,6 +11,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead
 } from "../../services/notifications";
+import { trackNotificationRead } from "../../services/analytics";
 import type { InAppNotification } from "../../types/notifications";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -126,6 +127,7 @@ export default function NotificationsScreen() {
         prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
       );
       setUnreadCount((c) => Math.max(0, c - 1));
+      trackNotificationRead(id);
     }
   }
 

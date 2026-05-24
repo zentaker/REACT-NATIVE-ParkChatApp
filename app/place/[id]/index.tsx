@@ -14,6 +14,7 @@ import {
   upsertUserPlace,
   type PlaceGraphInsights
 } from "../../../services/graph";
+import { trackPlaceViewed } from "../../../services/analytics";
 import {
   getCurrentLocation,
   getLocationPermissionStatus,
@@ -45,6 +46,7 @@ export default function PlaceDetailScreen() {
       });
 
     upsertUserPlace(placeId, "visited").catch(() => {});
+    trackPlaceViewed(placeId);
 
     getPlaceGraphInsights(placeId)
       .then((data) => {
