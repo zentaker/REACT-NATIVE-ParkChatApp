@@ -1,6 +1,8 @@
 import { mockPlaces } from "../data/mockPlaces";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import type { Place, PlaceType, PlaceVisibility } from "../types";
+import type { UserLocation } from "../types/location";
+import { calculateDistanceMeters, formatDistanceLabel } from "./location";
 
 type PlaceRow = {
   id: string;
@@ -17,6 +19,13 @@ type PlaceRow = {
   visibility: string | null;
   created_at: string;
   updated_at?: string | null;
+};
+
+export type PlaceWithDistance = Place & {
+  distanceMeters: number | null;
+  distanceLabel: string | null;
+  isNearby: boolean;
+  isInsideRadius: boolean;
 };
 
 function mapCoordinate(value: number | string | null) {
@@ -78,4 +87,55 @@ export async function getPlaceById(id: string): Promise<Place | null> {
   }
 
   return mapPlaceRow(data as PlaceRow);
+}
+
+export function annotatePlacesWithDistance(
+  places: Place[],
+  userLocation: UserLocation | null
+): PlaceWithDistance[] {
+  return places.map((place) => {
+    if (!userLocation || !place.latitude || !place.longitude) {
+      return {
+        ...place,
+        distanceMeters: null,
+        distanceLabel: null,
+        isNearby: false,
+        isInsideRadius: false
+      };
+    }
+
+    const dist = calculateDistanceMeters(
+      userLocation.latitude,
+      userLocation.longitude,
+      place.latitude,
+      place.longitude
+    );
+
+    return {
+      ...place,
+      distanceMeters: dist,
+      distanceLabel: formatDistanceLabel(dist),
+      isNearby: dist <= 2000,
+      isInsideRadius: dist <= (place.radiusMeters ?? 150)
+    };
+  });
+}
+
+export function sortPlacesByDistance(
+  places: PlaceWithDistance[]
+): PlaceWithDistance[] {
+  return [...places].sort((a, b) => {
+    if (a.distanceMeters === null && b.distanceMeters === null) return 0;
+    if (a.distanceMeters === null) return 1;
+    if (b.distanceMeters === null) return -1;
+    return a.distanceMeters - b.distanceMeters;
+  });
+}
+
+export async function getNearbyPlacesWithDistance(
+  userLocation: UserLocation | null
+): Promise<PlaceWithDistance[]> {
+  const places = await getNearbyPlaces();
+  const annotated = annotatePlacesWithDistance(places, userLocation);
+  return sortPlacesByDistance(annotated);
 }

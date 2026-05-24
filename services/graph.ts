@@ -464,3 +464,83 @@ export async function getMyConnections(): Promise<UserConnection[]> {
   }
   return (data as UserConnectionRow[]).map(mapUserConnection);
 }
+
+export type PlaceGraphInsights = {
+  topics: PlaceTopic[];
+  groupsCount: number;
+  eventsCount: number;
+  myRelationship: UserPlace | null;
+  myRelatedTopics: UserTopicInterest[];
+};
+
+export async function getMyPlaceRelationship(placeId: string): Promise<UserPlace | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("user_places")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("place_id", placeId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[graph] getMyPlaceRelationship error:", error.message);
+    return null;
+  }
+  if (!data) return null;
+  return mapUserPlace(data as UserPlaceRow);
+}
+
+export async function getRelatedTopicsForPlace(placeId: string): Promise<UserTopicInterest[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  const { data: placeTopics } = await supabase
+    .from("place_topics")
+    .select("topic_tag_id")
+    .eq("place_id", placeId);
+
+  if (!placeTopics || placeTopics.length === 0) return [];
+
+  const topicTagIds = (placeTopics as { topic_tag_id: string }[]).map((pt) => pt.topic_tag_id);
+
+  const { data, error } = await supabase
+    .from("user_topic_interests")
+    .select("*, topic_tags(*)")
+    .eq("user_id", userId)
+    .in("topic_tag_id", topicTagIds)
+    .order("weight", { ascending: false });
+
+  if (error) {
+    console.warn("[graph] getRelatedTopicsForPlace error:", error.message);
+    return [];
+  }
+  return (data as UserTopicInterestRow[]).map(mapUserTopicInterest);
+}
+
+export async function getPlaceGraphInsights(placeId: string): Promise<PlaceGraphInsights> {
+  const [topics, myRelationship, myRelatedTopics] = await Promise.all([
+    getPlaceTopics(placeId, 8),
+    getMyPlaceRelationship(placeId),
+    getRelatedTopicsForPlace(placeId)
+  ]);
+
+  let groupsCount = 0;
+  let eventsCount = 0;
+
+  if (isSupabaseConfigured && supabase) {
+    const [{ count: gc }, { count: ec }] = await Promise.all([
+      supabase.from("groups").select("*", { count: "exact", head: true }).eq("place_id", placeId),
+      supabase.from("events").select("*", { count: "exact", head: true }).eq("place_id", placeId)
+    ]);
+    groupsCount = gc ?? 0;
+    eventsCount = ec ?? 0;
+  }
+
+  return { topics, groupsCount, eventsCount, myRelationship, myRelatedTopics };
+}

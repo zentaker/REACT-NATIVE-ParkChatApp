@@ -5,12 +5,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState } from "../../../components/EmptyState";
 import { LoadingState } from "../../../components/LoadingState";
+import { NearbyPlaceBadge } from "../../../components/NearbyPlaceBadge";
 import { PlaceHeader } from "../../../components/PlaceHeader";
 import { SafetyNotice } from "../../../components/SafetyNotice";
 import { UI_COLORS } from "../../../lib/constants";
-import { getPlaceTopics, upsertUserPlace } from "../../../services/graph";
+import {
+  getPlaceGraphInsights,
+  upsertUserPlace,
+  type PlaceGraphInsights
+} from "../../../services/graph";
+import {
+  getCurrentLocation,
+  getLocationPermissionStatus,
+  isWithinPlaceRadius,
+  formatDistanceLabel,
+  calculateDistanceMeters
+} from "../../../services/location";
 import { getPlaceById } from "../../../services/places";
-import type { PlaceTopic } from "../../../types/graph";
+import type { UserLocation } from "../../../types/location";
 import type { Place } from "../../../types";
 
 export default function PlaceDetailScreen() {
@@ -18,8 +30,8 @@ export default function PlaceDetailScreen() {
   const placeId = String(id ?? "");
   const [place, setPlace] = useState<Place | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [topics, setTopics] = useState<PlaceTopic[]>([]);
-  const [visitCount, setVisitCount] = useState<number | null>(null);
+  const [insights, setInsights] = useState<PlaceGraphInsights | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -32,15 +44,20 @@ export default function PlaceDetailScreen() {
         if (isMounted) setIsLoading(false);
       });
 
-    upsertUserPlace(placeId, "visited")
-      .then((userPlace) => {
-        if (isMounted && userPlace) setVisitCount(userPlace.visitCount);
+    upsertUserPlace(placeId, "visited").catch(() => {});
+
+    getPlaceGraphInsights(placeId)
+      .then((data) => {
+        if (isMounted) setInsights(data);
       })
       .catch(() => {});
 
-    getPlaceTopics(placeId, 8)
-      .then((nextTopics) => {
-        if (isMounted) setTopics(nextTopics);
+    getLocationPermissionStatus()
+      .then(async (status) => {
+        if (status === "granted") {
+          const loc = await getCurrentLocation();
+          if (isMounted) setUserLocation(loc);
+        }
       })
       .catch(() => {});
 
@@ -48,6 +65,32 @@ export default function PlaceDetailScreen() {
       isMounted = false;
     };
   }, [placeId]);
+
+  const distanceMeters =
+    userLocation && place
+      ? calculateDistanceMeters(
+          userLocation.latitude,
+          userLocation.longitude,
+          place.latitude,
+          place.longitude
+        )
+      : null;
+
+  const insideRadius =
+    userLocation && place ? isWithinPlaceRadius(userLocation, place) : false;
+
+  const distanceLabel = distanceMeters !== null ? formatDistanceLabel(distanceMeters) : null;
+
+  const geoStatus = !userLocation
+    ? "Ubicación no disponible"
+    : insideRadius
+    ? "Estás dentro del área del lugar"
+    : distanceMeters !== null && distanceMeters <= 2000
+    ? "Estás cerca"
+    : "Estás fuera del área";
+
+  const visitCount = insights?.myRelationship?.visitCount ?? null;
+  const lastSeenAt = insights?.myRelationship?.lastSeenAt ?? null;
 
   return (
     <SafeAreaView edges={["left", "right"]} style={styles.screen}>
@@ -62,6 +105,29 @@ export default function PlaceDetailScreen() {
           <>
             <PlaceHeader place={place} />
             <SafetyNotice />
+
+            {/* Geospatial context */}
+            <View style={styles.sectionCard}>
+              <View style={styles.geoHeader}>
+                <Text style={styles.sectionTitle}>Contexto geoespacial</Text>
+                {distanceLabel ? (
+                  <NearbyPlaceBadge
+                    distanceLabel={distanceLabel}
+                    isInsideRadius={insideRadius}
+                    isNearby={distanceMeters !== null && distanceMeters <= 2000}
+                  />
+                ) : null}
+              </View>
+              <Text style={[styles.geoStatus, insideRadius && styles.geoStatusActive]}>
+                {geoStatus}
+              </Text>
+              <Text style={styles.geoRadius}>Radio del lugar: {place.radiusMeters} m</Text>
+              {!userLocation ? (
+                <Text style={styles.geoHint}>
+                  Activa la ubicación en la pantalla de lugares para ver tu distancia.
+                </Text>
+              ) : null}
+            </View>
 
             <View style={styles.actions}>
               <Pressable
@@ -79,7 +145,9 @@ export default function PlaceDetailScreen() {
                   style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}
                 >
                   <Text style={styles.secondaryTitle}>Grupos</Text>
-                  <Text style={styles.secondaryCopy}>{place.groupsCount ?? 0} comunidades</Text>
+                  <Text style={styles.secondaryCopy}>
+                    {insights?.groupsCount ?? place.groupsCount ?? 0} comunidades
+                  </Text>
                 </Pressable>
 
                 <Pressable
@@ -88,22 +156,27 @@ export default function PlaceDetailScreen() {
                   style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}
                 >
                   <Text style={styles.secondaryTitle}>Eventos</Text>
-                  <Text style={styles.secondaryCopy}>{place.eventsCount ?? 0} activos</Text>
+                  <Text style={styles.secondaryCopy}>
+                    {insights?.eventsCount ?? place.eventsCount ?? 0} activos
+                  </Text>
                 </Pressable>
               </View>
             </View>
 
+            {/* Temas activos */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Temas activos</Text>
-              {topics.length === 0 ? (
+              {!insights || insights.topics.length === 0 ? (
                 <Text style={styles.emptyHint}>
                   Aun no hay temas. Usa hashtags en el chat (#tennis, #musica) para crear temas del lugar.
                 </Text>
               ) : (
                 <View style={styles.topicList}>
-                  {topics.map((topic) => (
+                  {insights.topics.map((topic) => (
                     <View key={topic.id} style={styles.topicChip}>
-                      <Text style={styles.topicName}>#{topic.topicTag?.name ?? topic.topicTagId.slice(0, 8)}</Text>
+                      <Text style={styles.topicName}>
+                        #{topic.topicTag?.name ?? topic.topicTagId.slice(0, 8)}
+                      </Text>
                       <Text style={styles.topicWeight}>{topic.weight}</Text>
                     </View>
                   ))}
@@ -111,23 +184,49 @@ export default function PlaceDetailScreen() {
               )}
             </View>
 
+            {/* Tu relación con este lugar */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Tu relacion con este lugar</Text>
               {visitCount !== null ? (
-                <View style={styles.statsRow}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{visitCount}</Text>
-                    <Text style={styles.statLabel}>visitas tuyas</Text>
+                <>
+                  <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{visitCount}</Text>
+                      <Text style={styles.statLabel}>visitas tuyas</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{insights?.topics.length ?? 0}</Text>
+                      <Text style={styles.statLabel}>temas activos</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>
+                        {insights?.myRelatedTopics.length ?? 0}
+                      </Text>
+                      <Text style={styles.statLabel}>intereses compartidos</Text>
+                    </View>
                   </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{topics.length}</Text>
-                    <Text style={styles.statLabel}>temas activos</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{place.groupsCount ?? 0}</Text>
-                    <Text style={styles.statLabel}>grupos</Text>
-                  </View>
-                </View>
+                  {lastSeenAt ? (
+                    <Text style={styles.lastSeen}>
+                      Última visita: {new Date(lastSeenAt).toLocaleDateString("es", {
+                        day: "numeric", month: "short"
+                      })}
+                    </Text>
+                  ) : null}
+                  {insights?.myRelatedTopics && insights.myRelatedTopics.length > 0 ? (
+                    <View style={styles.relatedTopics}>
+                      <Text style={styles.relatedLabel}>Tus intereses aquí:</Text>
+                      <View style={styles.topicList}>
+                        {insights.myRelatedTopics.slice(0, 4).map((interest) => (
+                          <View key={interest.id} style={[styles.topicChip, styles.topicChipMuted]}>
+                            <Text style={styles.topicNameMuted}>
+                              #{interest.topicTag?.name ?? interest.topicTagId.slice(0, 8)}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+                </>
               ) : (
                 <Text style={styles.emptyHint}>Conecta Supabase para ver tu historial en este lugar.</Text>
               )}
@@ -196,13 +295,36 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.border,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 12,
+    gap: 10,
     padding: 16
   },
   sectionTitle: {
     color: UI_COLORS.text,
     fontSize: 17,
     fontWeight: "900"
+  },
+  geoHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between"
+  },
+  geoStatus: {
+    color: UI_COLORS.textMuted,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  geoStatusActive: {
+    color: UI_COLORS.teal
+  },
+  geoRadius: {
+    color: UI_COLORS.textMuted,
+    fontSize: 12
+  },
+  geoHint: {
+    color: UI_COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 17
   },
   emptyHint: {
     color: UI_COLORS.textMuted,
@@ -223,10 +345,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6
   },
+  topicChipMuted: {
+    backgroundColor: "#f0ede4"
+  },
   topicName: {
     color: UI_COLORS.primary,
     fontSize: 13,
     fontWeight: "800"
+  },
+  topicNameMuted: {
+    color: UI_COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700"
   },
   topicWeight: {
     backgroundColor: UI_COLORS.primary,
@@ -257,5 +387,17 @@ const styles = StyleSheet.create({
     color: UI_COLORS.textMuted,
     fontSize: 12,
     textAlign: "center"
+  },
+  lastSeen: {
+    color: UI_COLORS.textMuted,
+    fontSize: 12
+  },
+  relatedTopics: {
+    gap: 8
+  },
+  relatedLabel: {
+    color: UI_COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700"
   }
 });

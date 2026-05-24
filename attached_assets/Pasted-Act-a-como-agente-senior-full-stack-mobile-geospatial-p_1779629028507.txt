@@ -1,0 +1,475 @@
+Actúa como agente senior full-stack mobile + geospatial product engineer para ParkChat / Aldea.
+
+Stage:
+Stage 2B — Geofencing real + mapa de lugares cercanos + graph insights refinados
+
+Contexto:
+Stage 1 está cerrado y publicado como v0.1.0.
+Stage 2A graph-ready layer está completamente implementado y validado.
+
+Estado confirmado:
+- v0.1.0 tag publicado en GitHub.
+- GitHub Actions release workflow success.
+- Supabase real conectado.
+- qa:smoke 23/23 PASS.
+- supabase:check:graph 33/33 PASS.
+- typecheck 0 errores.
+- Stage 2A graph-ready completo.
+- user_places, topic_tags, message_topic_tags, place_topics, user_topic_interests y user_connections ya existen.
+- Place topics / hashtags / interests / graph-ready services ya están implementados.
+- El fallo de TEST 3 en qa:graph es esperado por rate limiter ante mensajes duplicados en tests repetidos, no es bug nuevo.
+
+Objetivo de Stage 2B:
+Convertir la app de una comunidad por lugares en una experiencia geoespacial real:
+
+1. Detectar ubicación del usuario con permisos.
+2. Calcular lugares cercanos usando radius_meters.
+3. Mostrar mapa/lista de lugares cercanos.
+4. Registrar presencia contextual sin exponer ubicación exacta.
+5. Mejorar user_places con visited/active/interested.
+6. Refinar insights de lugar usando graph-ready data.
+7. Preparar la app para validación en Expo Go / dispositivo físico.
+8. Mantener Stage 1 y Stage 2A intactos.
+
+No objetivos:
+- No agregar Neo4j todavía.
+- No agregar matching romántico.
+- No agregar feed global.
+- No agregar IA generativa.
+- No crear nuevo release/tag todavía.
+- No romper Supabase/RLS.
+- No exponer ubicación exacta del usuario.
+- No mostrar “usuario X está aquí”.
+- No guardar coordenadas precisas del usuario.
+- No hacer rediseño total.
+- No tocar secrets.
+- No desactivar RLS.
+
+Tarea 0 — Crear rama segura
+
+Ejecutar:
+
+git status --short
+git branch
+git log --oneline -5
+
+Si el working tree está limpio:
+
+git checkout -b stage-2b-geospatial
+
+Si la rama ya existe, usarla.
+
+Si Git está bloqueado:
+- documentar.
+- trabajar en checkpoint Replit.
+- no tocar tag v0.1.0.
+
+Tarea 1 — Validaciones base
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+
+Confirmar:
+- doctor:node PASS.
+- supabase:doctor-db PASS.
+- typecheck 0 errores.
+- qa:smoke 23/23 PASS.
+- check graph 33/33 PASS.
+- no secrets impresos.
+- app no usa mocks.
+
+Si algo falla:
+- detener Stage 2B.
+- reportar bloqueo.
+- no implementar geofencing.
+
+Tarea 2 — Auditar soporte actual de ubicación/mapa
+
+Revisar:
+- package.json
+- app/(tabs)/map.tsx
+- app/(tabs)/places.tsx
+- services/places.ts
+- services/graph.ts
+- types/place.ts
+- types/graph.ts
+- components/PlaceCard.tsx
+- components/SafetyNotice.tsx
+- docs/TECHNICAL_ARCHITECTURE.md
+- docs/ROADMAP.md
+
+Identificar:
+- si expo-location está instalado
+- si react-native-maps o alternativa está instalada
+- si existe fallback web
+- cómo se ordenan lugares actualmente
+- si radius_meters está siendo usado
+- si hay helper de distancia existente
+
+Crear:
+
+docs/STAGE_2B_GEOSPATIAL_PLAN.md
+
+Debe incluir:
+1. estado actual de ubicación/mapa
+2. estrategia mobile
+3. estrategia web fallback
+4. riesgos de privacidad
+5. qué se implementará
+6. qué se deja para Stage 2C/3
+7. criterios de aceptación
+
+Tarea 3 — Instalar/validar dependencias
+
+Si falta expo-location, instalar:
+
+npx expo install expo-location
+
+Para mapa:
+- Si ya existe react-native-maps o expo maps, usar lo existente.
+- Si no existe, NO forzar mapa nativo complejo en este stage.
+- Priorizar fallback estable:
+  - web: lista nearby + cards
+  - mobile: mapa si dependencia está disponible
+  - Expo Go: validación pendiente/manual
+
+No romper web preview.
+
+Tarea 4 — Crear servicio de ubicación
+
+Crear:
+
+services/location.ts
+
+Debe incluir:
+
+- requestLocationPermission()
+- getCurrentLocation()
+- getLocationPermissionStatus()
+- calculateDistanceMeters(lat1, lng1, lat2, lng2)
+- isWithinPlaceRadius(userLocation, place)
+- getLocationErrorMessage(error)
+
+Reglas:
+- no guardar coordenada exacta en DB
+- no enviar coordenada exacta a Supabase
+- usar ubicación solo en cliente para ordenar/filtrar lugares
+- si permiso se niega, la app debe seguir funcionando con lista seed/default
+- web debe tener fallback
+
+Crear tipos si hace falta:
+
+types/location.ts
+
+Tarea 5 — Nearby places logic
+
+Actualizar o extender:
+
+services/places.ts
+
+Agregar:
+- getNearbyPlacesWithDistance(userLocation)
+- sortPlacesByDistance(places, userLocation)
+- annotatePlacesWithDistance(places, userLocation)
+
+La lógica debe:
+- calcular distancia localmente
+- usar latitude/longitude de places
+- considerar radius_meters
+- marcar:
+  - nearby
+  - insideRadius
+  - distanceMeters
+
+No requerir ubicación para renderizar places.
+
+Tarea 6 — Integrar user_places geospatial
+
+Cuando usuario:
+- abre detalle de lugar
+- entra a chat de lugar
+- está dentro del radius_meters si location está disponible
+
+Actualizar user_places:
+
+- relationship_type = visited cuando abre lugar
+- relationship_type = active cuando entra al chat
+- incrementar visit_count
+- actualizar last_seen_at
+
+Si está fuera del radio:
+- permitir lectura
+- opcional: limitar acciones geocercadas solo si la feature ya existe
+- documentar que geofenced posting estricto queda para Stage 2C si no se implementa
+
+No bloquear UI si falla upsertUserPlace.
+
+Tarea 7 — UI de permisos/location
+
+Crear o actualizar componentes:
+
+components/LocationPermissionCard.tsx
+components/NearbyPlaceBadge.tsx
+
+UI debe mostrar:
+- “Permitir ubicación para ordenar lugares cercanos”
+- “Tu ubicación exacta no se comparte públicamente”
+- estado:
+  - permission unknown
+  - permission granted
+  - permission denied
+  - unavailable
+- botón para solicitar permiso
+- fallback cuando se deniega
+
+No mostrar coordenadas.
+
+Tarea 8 — Map / Nearby screen
+
+Actualizar:
+
+app/(tabs)/map.tsx
+app/(tabs)/places.tsx
+
+Objetivo:
+- mostrar lugares ordenados por cercanía si hay ubicación
+- mostrar distancia aproximada, ejemplo:
+  - “a 320 m”
+  - “cerca de ti”
+  - “fuera del radio”
+- mostrar badge si el usuario está dentro del radius_meters
+- si no hay permiso, mostrar lista normal y CTA de ubicación
+
+Si mapa nativo no está listo:
+- crear “map-like list” con cards y distancia
+- documentar mapa visual real para Stage 2C
+
+Web preview debe seguir funcionando.
+
+Tarea 9 — Place detail geospatial context
+
+Actualizar detalle de lugar:
+
+Mostrar:
+- distancia aproximada si hay ubicación
+- radius_meters
+- estado:
+  - “Estás dentro del área del lugar”
+  - “Estás cerca”
+  - “Ubicación no disponible”
+- SafetyNotice contextual
+
+No mostrar ubicación exacta del usuario.
+
+Integrar con graph insights:
+- temas activos
+- visitas propias
+- intereses relacionados
+- grupos/eventos del lugar
+
+Tarea 10 — Graph insights refinados
+
+Mejorar UI de Place Insights:
+
+Mostrar:
+- temas activos ordenados por weight
+- número de mensajes taggeados si existe dato
+- última actividad topic
+- grupos/eventos relacionados si existe
+- “Tu relación con este lugar”
+  - visit_count
+  - last_seen_at
+  - intereses compartidos con el lugar
+
+Actualizar services/graph.ts si hace falta:
+- getPlaceGraphInsights(placeId)
+- getMyPlaceRelationship(placeId)
+- getRelatedTopicsForPlace(placeId)
+
+No exponer datos de otros usuarios individualmente.
+
+Tarea 11 — QA geospatial
+
+Crear:
+
+scripts/qa-geospatial.mjs
+
+Debe validar:
+1. places tienen latitude/longitude/radius_meters.
+2. calculateDistanceMeters funciona con casos conocidos.
+3. getNearbyPlacesWithDistance ordena correctamente.
+4. isWithinPlaceRadius funciona.
+5. user_places upsert sigue funcionando.
+6. getPlaceGraphInsights devuelve estructura esperada.
+7. RLS no permite escribir user_places de otro usuario.
+8. qa:smoke sigue pasando.
+9. qa:graph sigue pasando o documenta rate-limit esperado si se repite.
+
+Agregar script:
+
+"qa:geo": "node scripts/qa-geospatial.mjs"
+
+Tarea 12 — Expo Go readiness
+
+Crear o actualizar:
+
+docs/EXPO_GO_TESTING.md
+
+Debe incluir:
+- cómo correr npm run start:go
+- cómo abrir en Expo Go
+- cómo probar location permission
+- cómo probar nearby places
+- qué no se puede validar bien en web
+- checklist mobile
+- limitaciones del preview web
+
+No requiere que el agente pueda probar físicamente en teléfono.
+Debe dejar el flujo listo para el usuario.
+
+Tarea 13 — Documentación
+
+Crear o actualizar:
+
+docs/STAGE_2B_GEOSPATIAL_REPORT.md
+docs/STAGE_2B_GEOSPATIAL_PLAN.md
+docs/ROADMAP.md
+docs/TECHNICAL_ARCHITECTURE.md
+docs/DATA_MODEL.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Documentar:
+- location strategy
+- privacy constraints
+- nearby algorithm
+- radius_meters
+- web fallback
+- Expo Go testing
+- graph insight refinements
+- known limitations
+- next stage
+
+Tarea 14 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+
+Si qa:graph falla solo por rate limiter esperado:
+- documentarlo como expected duplicate/rate-limit interaction.
+- no considerarlo bloqueo si Stage 2A está intacto.
+
+Si qa:geo falla:
+- corregir o documentar.
+
+Tarea 15 — Git/checkpoint
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "feat: add geospatial nearby layer"
+
+Si Git funciona:
+
+git push origin stage-2b-geospatial
+
+Si Git está bloqueado:
+- documentar checkpoint Replit.
+- indicar pasos manuales.
+
+No crear release tag.
+
+Criterios de aceptación:
+
+Stage 2B queda completo si:
+
+1. Stage 1 baseline sigue pasando qa:smoke.
+2. Stage 2A graph layer sigue validado.
+3. services/location.ts existe.
+4. calculateDistanceMeters probado.
+5. nearby places funciona con o sin permiso.
+6. web preview no se rompe.
+7. location permission UI existe.
+8. places se ordenan por distancia si hay ubicación.
+9. place detail muestra contexto geográfico seguro.
+10. user_places se actualiza con visited/active.
+11. place insights se refinan.
+12. qa:geo pasa.
+13. no se guarda ubicación exacta del usuario.
+14. no se muestra presencia individual sensible.
+15. docs actualizadas.
+
+Entrega final esperada:
+
+## Stage 2B — Geospatial Nearby Layer Resultado
+
+### Estado
+- Stage 1 baseline:
+- Stage 2A graph:
+- Location service:
+- Permissions UI:
+- Nearby places:
+- Map/list fallback:
+- Place detail geospatial:
+- Graph insights:
+- Expo Go readiness:
+- qa:geo:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- typecheck:
+- qa:smoke:
+- check graph:
+- qa:graph:
+- qa:geo:
+- preview web:
+
+### UI nueva
+-
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Known limitations
+-
+
+### Próximo stage
+Si todo pasa:
+Stage 2C — mobile device QA + strict geofenced posting + map polish.
+
+Si falla location:
+Stage 2B-Location-Fix.
+
+Si falla graph:
+Stage 2B-Graph-Fix.
+
+Si falla UI:
+Stage 2B-UI-Fix.
