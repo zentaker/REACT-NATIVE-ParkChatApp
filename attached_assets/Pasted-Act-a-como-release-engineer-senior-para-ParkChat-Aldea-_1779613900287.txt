@@ -1,0 +1,280 @@
+Actúa como release engineer senior para ParkChat / Aldea.
+
+Stage:
+Stage 1 Finalization — Commit final + tag v0.1.0
+
+Contexto:
+El proyecto ParkChat / Aldea ya completó Stage 1.
+
+Estado confirmado:
+- Supabase real conectado.
+- Mocks desactivados.
+- DB automation funcionando.
+- Policies RLS aplicadas.
+- Triggers aplicados.
+- Seed aplicado.
+- qa:smoke pasó 23/23.
+- typecheck pasó con 0 errores.
+- doctor:node OK.
+- supabase:doctor-db OK.
+- Preview web operativo.
+- Release QA final ya fue ejecutado.
+- Stage 1 está listo para cerrarse.
+- El siguiente hito es crear el commit final de cierre de Stage 1 y taggear v0.1.0.
+
+Objetivo:
+1. Confirmar que el working tree está limpio o preparar commit final.
+2. Crear commit de cierre de Stage 1 si hay cambios pendientes.
+3. Hacer push a GitHub.
+4. Crear tag v0.1.0.
+5. Hacer push del tag.
+6. Verificar que el workflow de release de GitHub se dispare.
+7. Documentar resultado.
+
+No objetivos:
+- No agregar features nuevas.
+- No tocar Supabase.
+- No modificar schema.
+- No modificar RLS.
+- No cambiar secrets.
+- No imprimir secrets.
+- No crear más de un tag.
+- No crear tag si las validaciones fallan.
+- No hacer cambios de Stage 2 todavía.
+
+Tarea 1 — Validaciones finales antes de release
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+
+Confirmar:
+- doctor:node OK.
+- supabase:doctor-db OK.
+- typecheck 0 errores.
+- qa:smoke 23/23 PASS.
+- no secrets impresos.
+- app no usa mocks.
+- Supabase real OK.
+
+Si alguna validación falla:
+- detener release.
+- reportar error exacto.
+- no hacer tag.
+
+Tarea 2 — Revisar estado Git
+
+Ejecutar:
+
+git status --short
+git branch
+git remote -v
+git log --oneline -10
+
+Confirmar:
+- branch actual es main.
+- origin apunta a GitHub correcto.
+- no hay archivos sensibles.
+- no hay .env.
+- no hay secrets.
+- no hay node_modules.
+- no hay .expo.
+- no hay dist innecesario.
+
+Si hay cambios pendientes:
+- revisar que son cambios válidos de Stage 1 / docs / QA / release.
+- preparar commit.
+
+Tarea 3 — Commit final de Stage 1
+
+Si hay cambios pendientes:
+
+git add .
+git commit -m "chore: finalize Stage 1 MVP baseline"
+
+Si no hay cambios pendientes:
+- documentar que no se creó commit porque el working tree ya estaba limpio.
+- continuar con tag usando el último commit válido.
+
+Tarea 4 — Push a main
+
+Ejecutar:
+
+git push origin main
+
+Si push falla:
+- reportar error exacto.
+- no crear tag hasta que main esté actualizado.
+- si Replit bloquea Git desde shell, indicar que el usuario debe hacer Tools → Git → Push.
+- no usar credenciales inseguras.
+- no imprimir tokens.
+
+Tarea 5 — Verificar workflow de release
+
+Revisar:
+
+.github/workflows/release.yml
+
+Confirmar:
+- existe.
+- se ejecuta con tags v*.
+- tiene permissions contents: write.
+- crea bundle sin node_modules, .env, .expo, dist viejo, web-build ni secrets.
+- no incluye archivos sensibles.
+
+Si el workflow no existe o está roto:
+- detener tag.
+- crear/fix workflow.
+- commitear y pushear primero.
+- no crear tag hasta que workflow esté en main.
+
+Tarea 6 — Crear tag v0.1.0
+
+Primero verificar si ya existe:
+
+git tag --list "v0.1.0"
+
+Si existe:
+- no recrearlo.
+- reportar que v0.1.0 ya existe.
+- verificar si está pusheado.
+
+Si no existe:
+
+git tag v0.1.0
+git push origin v0.1.0
+
+Si push del tag falla:
+- reportar error exacto.
+- no crear otro tag alternativo.
+
+Tarea 7 — Verificar GitHub Release
+
+Después de pushear el tag:
+- verificar si GitHub Actions se disparó.
+- verificar si se creó GitHub Release v0.1.0.
+- verificar si el bundle fue generado.
+- verificar que el bundle no incluye secrets.
+
+Si no puedes verificar desde Replit:
+- documentar que el usuario debe revisar GitHub → Actions y GitHub → Releases.
+- indicar el tag creado.
+
+Tarea 8 — Crear reporte de release
+
+Crear o actualizar:
+
+docs/RELEASE_V0_1_0_REPORT.md
+
+Debe incluir:
+
+# Release v0.1.0 Report
+
+Secciones:
+1. Estado general.
+2. Commit base.
+3. Tag.
+4. Branch.
+5. Validaciones ejecutadas.
+6. Resultado de qa:smoke.
+7. Resultado de typecheck.
+8. Resultado de doctor:node.
+9. Resultado de supabase:doctor-db.
+10. Estado de GitHub Actions.
+11. Estado de GitHub Release.
+12. Known limitations.
+13. Qué queda para Stage 2.
+14. Próximo stage recomendado.
+
+Actualizar también:
+
+docs/ROADMAP.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Marcar:
+- Stage 1 completado.
+- v0.1.0 creado o pendiente según resultado.
+- Stage 2 listo para iniciar después del release.
+
+Tarea 9 — Commit del reporte post-tag si aplica
+
+Si se creó/actualizó documentación después del tag:
+- no modificar el tag v0.1.0.
+- crear un commit posterior de docs si es necesario:
+
+git add docs/RELEASE_V0_1_0_REPORT.md docs/ROADMAP.md docs/REPLIT_CURRENT_STATUS.md
+git commit -m "docs: add v0.1.0 release report"
+git push origin main
+
+Importante:
+El tag v0.1.0 debe apuntar al commit que representa el cierre real de Stage 1.
+No mover el tag salvo instrucción explícita del usuario.
+
+Criterios de aceptación:
+
+Este stage queda completo si:
+
+1. doctor:node pasa.
+2. supabase:doctor-db pasa.
+3. typecheck pasa.
+4. qa:smoke pasa 23/23.
+5. main está actualizado en GitHub.
+6. commit final existe o se confirma que no era necesario.
+7. tag v0.1.0 existe.
+8. tag v0.1.0 fue pusheado.
+9. GitHub Actions fue disparado o queda pendiente con razón exacta.
+10. GitHub Release fue creado o queda pendiente con razón exacta.
+11. docs/RELEASE_V0_1_0_REPORT.md existe o fue actualizado.
+12. No se expusieron secrets.
+13. No se agregaron features nuevas.
+14. No se inició Stage 2 todavía.
+
+Entrega final esperada:
+
+## Stage 1 Finalization — Resultado
+
+### Estado
+- Stage 1:
+- Commit final:
+- Push main:
+- Tag v0.1.0:
+- Push tag:
+- GitHub Actions:
+- GitHub Release:
+- Release readiness:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- typecheck:
+- qa:smoke:
+
+### Git
+- branch:
+- remote:
+- commit base:
+- último commit:
+- tag:
+- release workflow:
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Known limitations
+-
+
+### Próximo stage
+Si v0.1.0 fue creado correctamente:
+Stage 2A — Graph-ready product layer.
+
+Si el tag/release falló:
+Stage 1E-Fix — corregir GitHub Actions, push o release workflow.
