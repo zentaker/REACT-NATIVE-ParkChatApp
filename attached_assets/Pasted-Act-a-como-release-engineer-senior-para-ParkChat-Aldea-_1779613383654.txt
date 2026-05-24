@@ -1,0 +1,246 @@
+Actúa como release engineer senior para ParkChat / Aldea.
+
+Stage:
+Etapa 1E — Tag v0.1.0 y verificación de GitHub Release
+
+Contexto:
+La Etapa 1D — Release QA ya fue completada.
+El proyecto está listo para preparar el primer release v0.1.0 si no hay bloqueadores críticos.
+
+Estado esperado previo:
+- qa:smoke PASS.
+- typecheck PASS.
+- Supabase conectado.
+- RLS validado.
+- Grupos/eventos/reportes/moderación revisados.
+- Preview web operativo.
+- Secrets audit sin exposición crítica.
+- docs/RELEASE_V0_1_0_CHECKLIST.md existe.
+- docs/ETAPA_1D_RELEASE_QA.md existe.
+- GitHub release workflow existe en .github/workflows/release.yml.
+
+Objetivo:
+Crear el release candidate final, hacer commit/push si falta, crear tag v0.1.0 y verificar que GitHub Actions genere el release.
+
+No objetivos:
+- No agregar features nuevas.
+- No modificar schema salvo bug crítico.
+- No tocar secrets.
+- No imprimir secrets.
+- No desactivar RLS.
+- No cambiar Supabase.
+- No hacer refactor grande.
+- No crear más de un tag.
+- No crear release si hay cambios sin validar.
+
+Tarea 1 — Confirmar estado final
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+
+Confirmar:
+- doctor:node OK.
+- supabase:doctor-db OK.
+- typecheck 0 errores.
+- qa:smoke PASS.
+- no secrets impresos.
+
+Si algo falla:
+- detener release.
+- reportar bloqueo.
+- no crear tag.
+
+Tarea 2 — Revisar checklist release
+
+Revisar:
+
+docs/RELEASE_V0_1_0_CHECKLIST.md
+docs/ETAPA_1D_RELEASE_QA.md
+
+Confirmar:
+- Release readiness = GO.
+- No hay bloqueadores críticos.
+- Limitaciones conocidas están documentadas.
+- Lo pendiente post-v0.1.0 está documentado.
+
+Si Release readiness no es GO:
+- detener.
+- no crear tag.
+
+Tarea 3 — Revisar Git
+
+Ejecutar:
+
+git status --short
+git branch
+git remote -v
+git log --oneline -10
+
+Si hay cambios pendientes:
+- revisarlos.
+- commitear solo si son docs/checklist/release QA o fixes ya validados.
+
+Commit sugerido si hay cambios:
+
+git add .
+git commit -m "docs: finalize v0.1.0 release candidate"
+
+Si Git directo está bloqueado por Replit:
+- reportar que el usuario debe usar Tools → Git para commit/push.
+- no afirmar que se hizo commit si no se pudo.
+
+Tarea 4 — Push a main
+
+Si Git funciona:
+
+git push origin main
+
+Si push falla:
+- reportar error exacto.
+- no crear tag hasta que main esté actualizado en GitHub.
+
+Tarea 5 — Verificar workflow de release
+
+Revisar:
+
+.github/workflows/release.yml
+
+Confirmar:
+- trigger por tags v*
+- permissions contents: write
+- crea bundle sin node_modules, .env, .expo, dist, web-build.
+- usa gh release create o action equivalente.
+- no incluye secrets.
+
+Si falta workflow:
+- crearlo o corregirlo.
+- commitear/pushear.
+- no crear tag hasta que workflow esté en main.
+
+Tarea 6 — Crear tag v0.1.0
+
+Antes de crear tag, verificar que no exista:
+
+git tag --list "v0.1.0"
+
+Si ya existe:
+- no recrearlo.
+- reportar estado.
+- verificar release existente.
+
+Si no existe y todo está OK:
+
+git tag v0.1.0
+git push origin v0.1.0
+
+Tarea 7 — Verificar GitHub Release
+
+Después de push tag:
+- verificar que GitHub Actions corrió.
+- verificar que se creó release v0.1.0.
+- verificar que el bundle no contiene:
+  - .env
+  - node_modules
+  - .expo
+  - secrets
+  - dist viejo
+- documentar URL o estado del release si está disponible.
+
+Si no puede verificar desde Replit:
+- indicar al usuario que revise GitHub → Actions / Releases.
+- documentar comandos/acciones pendientes.
+
+Tarea 8 — Actualizar documentación post-release
+
+Crear o actualizar:
+
+docs/RELEASE_V0_1_0_REPORT.md
+
+Debe incluir:
+- commit base.
+- tag.
+- release status.
+- QA summary.
+- known limitations.
+- post-v0.1.0 backlog.
+- instrucciones de rollback si aplica.
+
+Actualizar:
+
+docs/ROADMAP.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Marcar:
+- v0.1.0 released si el release se creó.
+- o v0.1.0 tag pushed / release pending si Actions no se pudo verificar.
+
+Tarea 9 — No avanzar a Etapa 2 todavía
+
+Después del release, no comenzar features nuevas.
+Solo reportar siguiente etapa recomendada.
+
+Criterios de aceptación:
+
+Etapa 1E queda completa si:
+
+1. doctor:node pasa.
+2. supabase:doctor-db pasa.
+3. typecheck pasa.
+4. qa:smoke pasa.
+5. Release readiness era GO.
+6. main está actualizado.
+7. release workflow existe.
+8. tag v0.1.0 fue creado y pusheado.
+9. GitHub Release fue creado o queda pendiente con razón exacta.
+10. docs/RELEASE_V0_1_0_REPORT.md existe.
+11. no se expusieron secrets.
+12. no se hicieron features nuevas.
+
+Entrega final esperada:
+
+## Etapa 1E — Release v0.1.0 Resultado
+
+### Estado
+- Release readiness:
+- main actualizado:
+- tag v0.1.0:
+- GitHub Actions:
+- GitHub Release:
+- bundle:
+- secrets audit:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- typecheck:
+- qa:smoke:
+
+### Git
+- branch:
+- commit base:
+- tag:
+- push main:
+- push tag:
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Release report
+-
+
+### Próximo stage
+Si release fue creado:
+Etapa 2A — Graph-ready product layer: topics, relationships and lightweight social graph UI.
+
+Si release quedó pendiente:
+Etapa 1E-Fix — corregir GitHub Actions/release workflow.

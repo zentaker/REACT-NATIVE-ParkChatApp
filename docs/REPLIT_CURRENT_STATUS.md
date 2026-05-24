@@ -1,6 +1,6 @@
 # Estado actual en Replit
 
-Snapshot del workspace al 23-may-2026. **Etapa 1D — Release QA completa.**
+Snapshot del workspace al 24-may-2026. **Etapa 1E — Release v0.1.0 en proceso (push pendiente).**
 
 ## Identificacion
 
@@ -99,17 +99,39 @@ https://api.supabase.com/v1/projects/apcdhwqfntujcwsbtfbu/database/query
 Authorization: Bearer {SUPABASE_ACCESS_TOKEN}
 ```
 
-## Release readiness
+## Etapa 1E — Release v0.1.0 (24-may-2026)
 
-| Item | Estado |
-|---|---|
-| Release readiness | ✅ **GO** |
-| v0.1.0 tag | ⏸ Pendiente aprobación del usuario |
-| Etapa 1D completa | ✅ |
+| Item | Estado | Detalle |
+|---|---|---|
+| Release readiness | ✅ **GO** | Verificado §15 de `RELEASE_V0_1_0_CHECKLIST.md` |
+| `doctor:node` | ✅ PASS | Node v20.20.0, URL válida, anon key presente |
+| `supabase:doctor-db` | ✅ PASS | 10/10 OK |
+| `typecheck` | ✅ PASS | 0 errores |
+| `qa:smoke` | ✅ **23/23 PASS** | Todas las validaciones OK |
+| `.github/workflows/release.yml` | ✅ Existe | Trigger `v*`, `permissions: write`, bundle correcto |
+| commit base | ✅ `5d28541` | HEAD de main |
+| tag `v0.1.0` | ⚠️ PENDIENTE MANUAL | git tag bloqueado en sandbox Replit |
+| push `origin main` | ⚠️ PENDIENTE MANUAL | Timeout de red desde Replit → acción manual |
+| push `origin v0.1.0` | ⚠️ PENDIENTE MANUAL | Requiere push después del tag |
+| GitHub Actions | ⏳ Pendiente push tag | Se activa al recibir tag en GitHub |
+| GitHub Release | ⏳ Pendiente | Se genera via `release.yml` |
+| `docs/RELEASE_V0_1_0_REPORT.md` | ✅ Creado | Reporte completo de Etapa 1E |
+
+### Acción manual requerida del usuario
+
+```bash
+# Desde terminal local o GitHub Desktop:
+git tag v0.1.0
+git push origin main
+git push origin v0.1.0
+```
+
+Luego verificar en: `github.com/zentaker/REACT-NATIVE-ParkChatApp` → Actions → Releases
 
 ## Próximo stage
 
-**Etapa 1E** — Crear tag `v0.1.0` y GitHub Release (requiere aprobación explícita del usuario).
+**Etapa 2A** — Graph-ready product layer: topics, relationships and lightweight social graph UI.  
+*(Solo iniciar después de confirmar GitHub Release v0.1.0 creado.)*
 
 **Limitaciones conocidas para Etapa 2:**
 - Geofencing activo (`expo-location`, cálculo de distancia, `canPost` por proximidad)

@@ -93,15 +93,15 @@ Verificado contra `app/`, `services/`, `supabase/`, `package.json`, `STAGE_0_COM
 - **Docs creados** — `ETAPA_1D_RELEASE_QA.md`, `RELEASE_V0_1_0_CHECKLIST.md`, `SUPABASE_DB_AUTOMATION.md`.
 - **Release readiness: GO** — pendiente aprobación de usuario para tag `v0.1.0`.
 
-### Etapa 1E — Pendiente aprobación usuario
+### Etapa 1E — Release v0.1.0 (en proceso — 24-may-2026)
 
-- Crear tag `v0.1.0`.
-- GitHub Release con release notes.
-- Cleanup de mensajes de QA en DB (opcional).
-- Eco optimista en `app/place/[id]/chat.tsx` con dedupe entre el mensaje local y el evento de Postgres Changes (ver `services/messages.ts#createOptimisticPlaceMessage`).
-- Sign-up deja perfil creado por trigger `handle_new_user` + fallback en `services/auth.ts` (`upsert` post sign-up).
-- Smoke test reproducible documentado en `docs/SMOKE_TEST.md`.
-- Checklist de RLS hostil en `docs/RLS_CHECKLIST.md`.
+- **Validaciones completas**: `doctor:node` ✅, `supabase:doctor-db` 10/10 ✅, `typecheck` 0 errores ✅, `qa:smoke` 23/23 PASS ✅.
+- **Release readiness**: GO ✅ (verificado en `RELEASE_V0_1_0_CHECKLIST.md` §15).
+- **Workflow de release**: `.github/workflows/release.yml` existe — trigger `v*`, `permissions: write`, bundle sin secrets/node_modules/.expo.
+- **Docs creados**: `docs/RELEASE_V0_1_0_REPORT.md`.
+- **BLOQUEADOR OPERACIONAL**: `git push` y `git tag` bloqueados desde Replit (sandbox + timeout de red).
+- **Acción manual pendiente del usuario**: `git tag v0.1.0 && git push origin main && git push origin v0.1.0`
+- **GitHub Release**: Pendiente — se crea automáticamente via Actions al recibir el tag en GitHub.
 
 ### Etapa 1A — Pendiente operativo (fuera de código)
 
