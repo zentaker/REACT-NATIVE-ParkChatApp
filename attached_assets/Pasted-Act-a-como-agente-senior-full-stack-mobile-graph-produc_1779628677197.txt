@@ -1,0 +1,609 @@
+Actúa como agente senior full-stack mobile + graph product architect para ParkChat / Aldea.
+
+Stage:
+Stage 2A — Graph-ready product layer
+
+Contexto:
+Stage 1 ya quedó cerrado funcionalmente y v0.1.0 fue preparado/publicado o está verificado como release-ready.
+
+Estado base confirmado:
+- Supabase real conectado.
+- Mocks desactivados.
+- DB automation funcionando.
+- RLS aplicado en todas las tablas.
+- qa:smoke 23/23 PASS.
+- typecheck 0 errores.
+- doctor:node OK.
+- supabase:doctor-db OK.
+- Preview web operativo.
+- Chat por lugar funciona.
+- Grupos funcionan.
+- Eventos funcionan.
+- Reportes/bloqueos funcionan.
+- Moderación funciona.
+- Rate limit funciona.
+- Release readiness de Stage 1 = GO.
+
+Objetivo de Stage 2A:
+Crear una capa graph-ready sobre Supabase/Postgres para empezar a capturar y visualizar relaciones sociales/contextuales sin introducir Neo4j todavía.
+
+El producto debe empezar a modelar:
+
+usuario ↔ lugar
+usuario ↔ grupo
+usuario ↔ evento
+usuario ↔ tema
+mensaje ↔ tema
+lugar ↔ tema
+usuario ↔ usuario
+
+Hipótesis de producto:
+“Cada lugar físico puede tener una comunidad viva: chat local, grupos, eventos y relaciones entre personas, temas y espacios.”
+
+Resultado esperado:
+Al terminar Stage 2A, la app debe poder:
+1. Registrar relación usuario-lugar cuando alguien entra o interactúa con un lugar.
+2. Extraer hashtags simples desde mensajes.
+3. Crear topic tags.
+4. Asociar mensajes con topics.
+5. Asociar lugares con topics activos.
+6. Registrar intereses básicos de usuario.
+7. Mostrar temas activos en el detalle del lugar.
+8. Mostrar intereses del usuario en el perfil.
+9. Validar RLS de relaciones propias.
+10. Mantener Stage 1 intacto.
+
+No objetivos:
+- No introducir Neo4j todavía.
+- No agregar una nueva base de datos.
+- No agregar matching romántico.
+- No agregar feed global.
+- No agregar IA generativa.
+- No cambiar el core de auth/chat/grupos/eventos.
+- No romper v0.1.0.
+- No crear release/tag.
+- No exponer secrets.
+- No desactivar RLS.
+- No hacer rediseño completo.
+- No mostrar ubicación exacta de usuarios.
+- No mostrar presencia individual sensible tipo “Sandra está aquí”.
+
+Tarea 0 — Crear rama segura
+
+Ejecutar:
+
+git status --short
+git branch
+git log --oneline -5
+
+Si el working tree está limpio, crear rama:
+
+git checkout -b stage-2a-graph-ready
+
+Si la rama ya existe, usarla.
+
+Si Git está bloqueado por Replit:
+- documentar.
+- trabajar en checkpoint Replit.
+- no tocar tag v0.1.0.
+
+Tarea 1 — Validaciones base antes de tocar código
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+
+Confirmar:
+- doctor:node PASS.
+- supabase:doctor-db PASS.
+- typecheck 0 errores.
+- qa:smoke 23/23 PASS.
+- no secrets impresos.
+- app no usa mocks.
+
+Si algo falla:
+- detener Stage 2A.
+- reportar bloqueo.
+- no implementar graph layer.
+
+Tarea 2 — Auditar modelo actual
+
+Revisar:
+
+supabase/schema.sql
+supabase/policies.sql
+supabase/seed.sql
+services/messages.ts
+services/groups.ts
+services/events.ts
+services/places.ts
+services/moderation.ts
+types/
+app/place/[id]/*
+app/(app)/*
+app/(tabs)/*
+docs/DATA_MODEL.md
+docs/ROADMAP.md
+docs/TECHNICAL_ARCHITECTURE.md
+
+Crear:
+
+docs/STAGE_2A_GRAPH_READY_PLAN.md
+
+Debe incluir:
+1. Entidades actuales.
+2. Relaciones actuales ya existentes.
+3. Relaciones graph-ready que faltan.
+4. Qué se implementará en Stage 2A.
+5. Qué se deja para Stage 2B.
+6. Qué se deja para Stage 3/Neo4j.
+7. Riesgos.
+8. Criterios de aceptación.
+
+Tarea 3 — Diseñar schema graph-ready en Postgres
+
+Crear:
+
+supabase/graph-ready.sql
+
+Debe ser idempotente y no destructivo.
+
+Crear estas tablas:
+
+1. user_places
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- user_id uuid not null references profiles(id) on delete cascade
+- place_id uuid not null references places(id) on delete cascade
+- relationship_type text not null default 'visited'
+- last_seen_at timestamptz default now()
+- visit_count integer not null default 1
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+- unique(user_id, place_id)
+
+relationship_type permitido:
+- visited
+- active
+- joined
+- hosted
+- interested
+
+2. topic_tags
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- name text not null unique
+- slug text not null unique
+- created_at timestamptz default now()
+
+3. message_topic_tags
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- message_id uuid not null references place_messages(id) on delete cascade
+- topic_tag_id uuid not null references topic_tags(id) on delete cascade
+- created_at timestamptz default now()
+- unique(message_id, topic_tag_id)
+
+4. place_topics
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- place_id uuid not null references places(id) on delete cascade
+- topic_tag_id uuid not null references topic_tags(id) on delete cascade
+- weight integer not null default 1
+- last_activity_at timestamptz default now()
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+- unique(place_id, topic_tag_id)
+
+5. user_topic_interests
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- user_id uuid not null references profiles(id) on delete cascade
+- topic_tag_id uuid not null references topic_tags(id) on delete cascade
+- source text not null default 'manual'
+- weight integer not null default 1
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+- unique(user_id, topic_tag_id)
+
+source permitido:
+- manual
+- hashtag
+- event
+- group
+- message
+
+6. user_connections
+
+Campos:
+- id uuid primary key default gen_random_uuid()
+- user_a uuid not null references profiles(id) on delete cascade
+- user_b uuid not null references profiles(id) on delete cascade
+- source text not null
+- place_id uuid references places(id) on delete set null
+- event_id uuid references events(id) on delete set null
+- group_id uuid references groups(id) on delete set null
+- weight integer not null default 1
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+- check (user_a <> user_b)
+
+source permitido:
+- same_place
+- same_group
+- same_event
+- shared_topic
+- manual
+
+Agregar índices:
+- user_places(user_id)
+- user_places(place_id)
+- topic_tags(slug)
+- message_topic_tags(message_id)
+- message_topic_tags(topic_tag_id)
+- place_topics(place_id, weight desc)
+- user_topic_interests(user_id)
+- user_connections(user_a)
+- user_connections(user_b)
+- user_connections(place_id)
+- user_connections(group_id)
+- user_connections(event_id)
+
+Activar RLS en todas las tablas nuevas.
+
+No hacer DROP.
+No borrar datos.
+No modificar tablas Stage 1 salvo que sea estrictamente necesario.
+
+Tarea 4 — Policies graph-ready
+
+Crear:
+
+supabase/graph-ready-policies.sql
+
+Policies mínimas:
+
+topic_tags:
+- authenticated puede leer.
+- authenticated puede insertar topic_tags.
+
+message_topic_tags:
+- authenticated puede leer si puede leer el mensaje asociado.
+- authenticated puede insertar si el mensaje pertenece al usuario o si acaba de crearlo.
+
+place_topics:
+- authenticated puede leer.
+- authenticated puede insertar/update mediante usuarios autenticados.
+- mantener restricciones razonables; no permitir delete abierto.
+
+user_places:
+- usuario puede leer sus propias relaciones.
+- usuario puede insertar/update sus propias relaciones.
+- usuario no puede escribir relaciones de otro usuario.
+
+user_topic_interests:
+- usuario puede leer sus propios intereses.
+- usuario puede insertar/update/delete sus propios intereses.
+- usuario no puede manipular intereses de otro usuario.
+
+user_connections:
+- usuario puede leer conexiones donde participa.
+- inserts controlados:
+  - usuario puede crear conexión donde user_a = auth.uid() o user_b = auth.uid()
+  - no puede crear conexión entre dos terceros.
+
+No abrir todo públicamente.
+No usar service_role en app cliente.
+
+Tarea 5 — Scripts DB graph-ready
+
+Actualizar package.json con:
+
+"supabase:apply:graph": "node scripts/apply-supabase-sql.mjs --file supabase/graph-ready.sql && node scripts/apply-supabase-sql.mjs --file supabase/graph-ready-policies.sql",
+"supabase:check:graph": "node scripts/check-graph-ready.mjs",
+"qa:graph": "node scripts/qa-graph-ready.mjs"
+
+Crear:
+
+scripts/check-graph-ready.mjs
+
+Debe validar:
+- tablas nuevas existen
+- RLS activo
+- policies existen
+- índices principales existen
+- no secrets impresos
+
+Tarea 6 — Tipos y servicios graph-ready
+
+Crear:
+
+types/graph.ts
+services/graph.ts
+
+Tipos:
+- UserPlace
+- TopicTag
+- MessageTopicTag
+- PlaceTopic
+- UserTopicInterest
+- UserConnection
+- GraphTopicSummary
+- GraphPlaceInsight
+
+Funciones en services/graph.ts:
+- extractHashtags(text: string): string[]
+- normalizeTopicName(name: string): string
+- slugifyTopic(name: string): string
+- upsertUserPlace(placeId: string, relationshipType?: string)
+- getUserPlaces()
+- getTopicTags()
+- getPlaceTopics(placeId: string)
+- tagMessage(messageId: string, placeId: string, body: string)
+- upsertUserTopicInterest(topicName: string, source?: string)
+- getUserTopicInterests()
+- getMyConnections()
+
+Reglas:
+- errores graph-ready no deben romper el flujo principal de chat.
+- si tagMessage falla, el mensaje igual debe quedar enviado.
+- log seguro, sin secrets.
+
+Tarea 7 — Integrar user_places
+
+Integrar upsertUserPlace en:
+- detalle de lugar
+- chat de lugar
+- join grupo si aplica
+- crear evento si aplica
+
+Cuando usuario abre un lugar:
+- relationship_type = visited
+- last_seen_at = now
+- visit_count incrementa
+
+No bloquear UI si falla.
+
+Tarea 8 — Integrar hashtags/topics en mensajes
+
+En el flujo de envío de mensaje:
+
+1. Enviar place_message como ya funciona.
+2. Extraer hashtags del body.
+3. Si hay hashtags:
+   - crear/obtener topic_tags.
+   - crear message_topic_tags.
+   - actualizar place_topics.
+   - opcionalmente actualizar user_topic_interests con source = hashtag.
+4. Si falla tagging:
+   - no revertir el mensaje.
+   - documentar/loggear de forma segura.
+
+Hashtags válidos:
+- #tennis
+- #japonés
+- #skate
+- #lectura
+- #cafe
+
+Soportar Unicode simple si es posible.
+Evitar duplicados.
+
+Tarea 9 — UI Place Insights
+
+En detalle de lugar agregar sección:
+
+“Temas activos”
+
+Debe mostrar:
+- top topics del lugar.
+- peso/activity.
+- empty state si no hay topics.
+- chips visuales simples.
+
+Agregar sección breve:
+
+“Tu relación con este lugar”
+- visit_count si existe.
+- última visita si existe.
+- no mostrar presencia exacta.
+- no mostrar datos de otros usuarios individualmente.
+
+No romper layout mobile/web.
+
+Tarea 10 — UI Profile Interests
+
+En perfil agregar sección:
+
+“Mis intereses”
+
+Debe mostrar:
+- intereses actuales del usuario.
+- chips de topics.
+- empty state.
+- input simple para agregar interés manual si es razonable.
+
+Al agregar interés:
+- crear topic_tag si no existe.
+- crear user_topic_interests con source = manual.
+
+No hacerlo complejo.
+
+Tarea 11 — QA graph-ready
+
+Crear:
+
+scripts/qa-graph-ready.mjs
+
+Debe validar con usuarios QA existentes:
+
+1. login usuario QA.
+2. leer places.
+3. upsert user_place.
+4. enviar o crear mensaje con hashtags.
+5. crear topic_tags.
+6. crear message_topic_tags.
+7. actualizar place_topics.
+8. crear user_topic_interests.
+9. leer getPlaceTopics.
+10. leer getUserTopicInterests.
+11. RLS bloquea modificar user_places de otro usuario.
+12. RLS bloquea modificar intereses de otro usuario.
+13. qa:smoke Stage 1 sigue pasando.
+
+No usar service_role para validar operaciones normales.
+Usar admin solo si necesita preparar datos iniciales.
+
+Tarea 12 — Documentación
+
+Crear o actualizar:
+
+docs/STAGE_2A_GRAPH_READY_PLAN.md
+docs/STAGE_2A_GRAPH_READY_REPORT.md
+docs/DATA_MODEL.md
+docs/ROADMAP.md
+docs/TECHNICAL_ARCHITECTURE.md
+
+Documentar:
+- por qué Postgres graph-ready antes de Neo4j.
+- tablas nuevas.
+- relaciones modeladas.
+- flujo hashtag → topic → place topic.
+- RLS.
+- QA.
+- limitaciones.
+- Stage 2B recomendado.
+- Stage 3 Neo4j futuro.
+
+Tarea 13 — Validaciones finales
+
+Ejecutar en orden:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+npm run supabase:apply:graph
+npm run supabase:check:graph
+npm run qa:graph
+npm run typecheck
+
+Si alguna falla:
+- documentar.
+- aplicar fix mínimo.
+- reintentar.
+
+Tarea 14 — Git
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "feat: add graph-ready product layer"
+
+Si Git funciona:
+
+git push origin stage-2a-graph-ready
+
+Si rama no existe o push falla:
+- reportar pasos manuales.
+- no tocar tag v0.1.0.
+
+Criterios de aceptación:
+
+Stage 2A queda completo si:
+
+1. Stage 1 baseline sigue pasando qa:smoke.
+2. graph-ready.sql existe.
+3. graph-ready-policies.sql existe.
+4. supabase:apply:graph funciona.
+5. supabase:check:graph pasa.
+6. services/graph.ts existe.
+7. types/graph.ts existe.
+8. user_places se registra al entrar a un lugar.
+9. hashtags crean topic_tags.
+10. hashtags crean message_topic_tags.
+11. hashtags actualizan place_topics.
+12. Profile permite/ver intereses básicos.
+13. Place detail muestra temas activos.
+14. qa:graph pasa.
+15. RLS protege relaciones propias.
+16. No se introduce Neo4j.
+17. No se rompe Stage 1.
+18. Docs actualizadas.
+
+Entrega final esperada:
+
+## Stage 2A — Graph-ready Product Layer Resultado
+
+### Estado
+- Stage 1 baseline:
+- Graph schema:
+- Graph policies:
+- Graph services:
+- User places:
+- Topics:
+- Message topic tags:
+- Place topics:
+- User interests:
+- Place insights UI:
+- Profile interests UI:
+- qa:graph:
+- Release/tag:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- typecheck:
+- qa:smoke:
+- apply graph:
+- check graph:
+- qa:graph:
+
+### Tablas nuevas
+-
+
+### UI nueva
+-
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Commit/checkpoint
+-
+
+### Próximo stage
+Si todo pasa:
+Stage 2B — geofencing real + mapa de lugares cercanos + graph insights refinados.
+
+Si falla RLS:
+Stage 2A-RLS-Fix.
+
+Si falla UI:
+Stage 2A-UI-Fix.
+
+Si falla DB:
+Stage 2A-DB-Fix.
