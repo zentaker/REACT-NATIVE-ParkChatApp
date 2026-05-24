@@ -9,10 +9,11 @@
  */
 
 import { createAnonClient } from './lib/supabase-admin.mjs';
-
-const QA_USER_A_EMAIL = 'qa.aldea.a@example.com';
-const QA_USER_B_EMAIL = 'qa.aldea.b@example.com';
-const QA_PASSWORD     = 'Ald3aQA!2026';
+import {
+  QA_USER_A_EMAIL,
+  QA_USER_A_PASSWORD as QA_PASSWORD,
+  QA_USER_B_EMAIL
+} from './lib/qa-config.mjs';
 
 let pass = 0;
 let fail = 0;

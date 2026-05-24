@@ -1,0 +1,470 @@
+Actúa como agente senior full-stack mobile + geospatial QA engineer para ParkChat / Aldea.
+
+Stage:
+Stage 2C — Mobile Map + Strict Geofenced Posting + Device QA
+
+Contexto:
+Stage 1 está cerrado y v0.1.0 está publicado en GitHub.
+Stage 2A graph-ready layer está completo.
+Stage 2B geospatial nearby layer está completo.
+
+Estado confirmado:
+- typecheck: 0 errores.
+- qa:smoke: 23/23 PASS.
+- supabase:check:graph: 33/33 PASS.
+- qa:graph: 23/23 PASS.
+- qa:geo: 12/12 PASS.
+- Supabase real operativo.
+- RLS operativo.
+- Graph-ready layer operativo.
+- Nearby/geospatial layer operativo.
+- services/location.ts implementado.
+- services/places.ts ordena por cercanía.
+- services/graph.ts tiene graph insights refinados.
+- LocationPermissionCard implementado.
+- NearbyPlaceBadge implementado.
+- Mapa/Lugares detecta ubicación y ordena por cercanía.
+- Detalle de lugar muestra contexto geoespacial.
+- No se guarda coordenada exacta del usuario en Supabase.
+
+Observación importante:
+Existe un patrón de credenciales QA hardcodeadas en scripts como:
+- qa-smoke.mjs
+- qa-graph-ready.mjs
+
+El reviewer lo confundió con la tarea del tag, pero pertenece a deuda técnica de QA. En Stage 2C debe normalizarse sin romper los tests.
+
+Objetivo de Stage 2C:
+Convertir la capa geoespacial en experiencia mobile real:
+
+1. Limpiar credenciales QA hardcodeadas y moverlas a secrets/config QA segura.
+2. Implementar o preparar mapa visual real en mobile.
+3. Mantener fallback web estable.
+4. Implementar geofenced posting estricto configurable.
+5. Validar permisos de ubicación en dispositivo físico / Expo Go.
+6. Validar que la app no expone ubicación exacta.
+7. Mantener Stage 1, Stage 2A y Stage 2B intactos.
+
+No objetivos:
+- No agregar Neo4j todavía.
+- No agregar matching romántico.
+- No agregar feed global.
+- No agregar IA generativa.
+- No crear release/tag todavía.
+- No romper web preview.
+- No guardar ubicación exacta del usuario en DB.
+- No mostrar presencia individual sensible.
+- No exponer secrets.
+- No desactivar RLS.
+- No hacer rediseño total.
+- No convertir la app en web-only.
+
+Tarea 0 — Crear rama segura
+
+Ejecutar:
+
+git status --short
+git branch
+git log --oneline -5
+
+Si el working tree está limpio:
+
+git checkout -b stage-2c-mobile-map-geofence
+
+Si la rama ya existe, usarla.
+
+Si Git está bloqueado por Replit:
+- documentar.
+- trabajar en checkpoint Replit.
+- no tocar tag v0.1.0.
+
+Tarea 1 — Validaciones base
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+
+Confirmar:
+- doctor:node PASS.
+- supabase:doctor-db PASS.
+- typecheck 0 errores.
+- qa:smoke 23/23 PASS.
+- check graph 33/33 PASS.
+- qa:graph 23/23 PASS o con rate-limit esperado documentado.
+- qa:geo 12/12 PASS.
+- no secrets impresos.
+- app no usa mocks.
+
+Si algo falla:
+- detener Stage 2C.
+- reportar bloqueo.
+- aplicar solo fix mínimo.
+
+Tarea 2 — Normalizar credenciales QA hardcodeadas
+
+Auditar:
+
+scripts/qa-smoke.mjs
+scripts/qa-graph-ready.mjs
+scripts/qa-geospatial.mjs
+scripts/lib/*
+package.json
+docs/QA_AUTOMATION_SUPABASE.md
+
+Buscar:
+- emails QA hardcodeados.
+- passwords QA hardcodeados.
+- tokens hardcodeados.
+- cualquier secret en código.
+
+Crear:
+
+scripts/lib/qa-config.mjs
+
+Debe leer:
+- QA_USER_A_EMAIL
+- QA_USER_A_PASSWORD
+- QA_USER_B_EMAIL
+- QA_USER_B_PASSWORD
+
+Si no existen, puede usar valores dummy seguros por defecto solo si:
+- no son secretos reales.
+- están documentados como QA-only.
+- no tienen acceso privilegiado.
+- no imprimen passwords.
+
+Actualizar qa scripts para usar qa-config.mjs.
+
+Agregar doctor:
+
+scripts/doctor-qa-secrets.mjs
+
+Debe validar:
+- QA users configurados o dummy fallback activo.
+- no imprimir passwords.
+- no existe EXPO_PUBLIC_QA_USER_PASSWORD.
+- no existe EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY.
+- no existe EXPO_PUBLIC_SUPABASE_DB_PASSWORD.
+
+Agregar scripts package.json:
+- "qa:doctor": "node scripts/doctor-qa-secrets.mjs"
+
+Actualizar docs:
+- docs/QA_AUTOMATION_SUPABASE.md
+- docs/STAGE_2C_MOBILE_MAP_GEOFENCE_PLAN.md
+
+Tarea 3 — Auditar mapa actual y dependencia mobile
+
+Revisar:
+- package.json
+- app/(tabs)/map.tsx
+- app/(tabs)/places.tsx
+- services/location.ts
+- services/places.ts
+- components/NearbyPlaceBadge.tsx
+- components/LocationPermissionCard.tsx
+- docs/EXPO_GO_TESTING.md
+
+Determinar:
+- si react-native-maps ya está instalado.
+- si expo maps está disponible.
+- si el web preview necesita fallback.
+- si el proyecto corre en Expo Go con la dependencia elegida.
+
+Si no hay mapa nativo instalado:
+- priorizar react-native-maps solo si compatible con Expo Go actual.
+- instalar con Expo:
+
+npx expo install react-native-maps
+
+Si la instalación genera conflicto:
+- no forzar.
+- documentar.
+- mantener map-like list como fallback.
+- dejar mapa nativo para development build si hace falta.
+
+Tarea 4 — Crear MapView abstraction
+
+Crear:
+
+components/PlacesMapView.tsx
+
+Debe:
+- usar Platform.OS.
+- en web: mostrar fallback map-like list.
+- en iOS/Android: mostrar mapa nativo si dependencia disponible.
+- mostrar markers de places.
+- centrar en user location si permission granted.
+- centrar en seed places si no hay user location.
+- nunca mostrar coordenada exacta como texto.
+- no guardar location en DB.
+
+Si react-native-maps no está disponible:
+- PlacesMapView debe renderizar fallback estable sin romper.
+
+Tarea 5 — Integrar mapa visual en tab Mapa
+
+Actualizar:
+
+app/(tabs)/map.tsx
+
+Debe mostrar:
+- LocationPermissionCard.
+- PlacesMapView.
+- lista breve de lugares cercanos debajo o como fallback.
+- NearbyPlaceBadge.
+- CTA para abrir detalle de lugar.
+- estado denied/unavailable.
+
+Validar:
+- web preview no se rompe.
+- mobile code está aislado.
+- layout usable.
+
+Tarea 6 — Strict geofenced posting configurable
+
+Crear o actualizar:
+
+services/geofence.ts
+
+Funciones:
+- canPostInPlaceChat({ userLocation, place, requireInsideRadius })
+- getGeofenceStatus(userLocation, place)
+- getGeofenceMessage(status)
+- shouldRequireGeofencePosting()
+
+Config:
+- default: strict geofence OFF para no romper QA/web.
+- permitir activar con variable:
+  EXPO_PUBLIC_STRICT_GEOFENCE_POSTING=true
+
+Reglas:
+- si strict OFF: permitir post, mostrar badge/contexto.
+- si strict ON y location granted:
+  - permitir post solo dentro de radius_meters.
+- si strict ON y location denied/unavailable:
+  - bloquear post con mensaje claro.
+- nunca enviar coordenada exacta a DB.
+- no usar geofence para leer chats, solo para postear.
+
+Tarea 7 — Integrar geofence en MessageInput/chat
+
+Actualizar chat de lugar:
+- calcular status geofence.
+- mostrar SafetyNotice/contexto.
+- si strict ON y fuera de radio:
+  - deshabilitar enviar.
+  - mostrar mensaje:
+    “Para escribir en este chat debes estar dentro del área del lugar.”
+- si strict OFF:
+  - permitir enviar.
+  - mostrar “Modo flexible: puedes participar aunque no validemos ubicación exacta.”
+
+No romper qa:smoke por defecto.
+Como strict OFF por defecto, qa:smoke debe seguir pasando.
+
+Tarea 8 — QA geofence
+
+Actualizar o crear:
+
+scripts/qa-geofence.mjs
+
+Debe validar lógica pura:
+1. usuario dentro del radio puede postear.
+2. usuario fuera del radio no puede postear si strict ON.
+3. usuario fuera del radio puede postear si strict OFF.
+4. location denied bloquea solo con strict ON.
+5. no se guarda location exacta.
+6. mensajes de estado son correctos.
+
+Agregar script:
+"qa:geofence": "node scripts/qa-geofence.mjs"
+
+Actualizar qa:geo si corresponde, pero no romperlo.
+
+Tarea 9 — Expo Go / device QA guide
+
+Actualizar o crear:
+
+docs/EXPO_GO_TESTING.md
+
+Debe incluir:
+- npm run start:go
+- escanear QR con Expo Go.
+- probar permisos de ubicación.
+- probar mapa.
+- probar nearby places.
+- probar geofence strict OFF.
+- probar geofence strict ON.
+- cómo activar EXPO_PUBLIC_STRICT_GEOFENCE_POSTING.
+- qué validar en iOS/Android.
+- qué no puede validarse bien en web.
+- checklist de dispositivo físico.
+
+Tarea 10 — UI/Privacy polish
+
+Validar textos:
+- “Tu ubicación exacta no se comparte públicamente.”
+- “La ubicación se usa solo para ordenar lugares cercanos.”
+- “El chat pertenece al lugar, no a tu coordenada exacta.”
+- “Modo flexible / modo geocercado estricto.”
+
+No mostrar lat/lng del usuario.
+No guardar lat/lng en Supabase.
+No mostrar usuarios activos individuales por ubicación.
+
+Tarea 11 — Documentación Stage 2C
+
+Crear:
+
+docs/STAGE_2C_MOBILE_MAP_GEOFENCE_PLAN.md
+docs/STAGE_2C_MOBILE_MAP_GEOFENCE_REPORT.md
+
+Actualizar:
+docs/ROADMAP.md
+docs/TECHNICAL_ARCHITECTURE.md
+docs/DATA_MODEL.md
+docs/REPLIT_CURRENT_STATUS.md
+
+Documentar:
+- mapa visual mobile.
+- fallback web.
+- geofence strict configurable.
+- QA secrets cleanup.
+- privacy model.
+- Expo Go readiness.
+- limitations.
+- next stage.
+
+Tarea 12 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run qa:doctor
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+npm run qa:geofence
+
+Si qa:graph falla por rate limiter esperado:
+- documentar.
+- no considerarlo bloqueo si baseline y graph checks pasan.
+
+Si react-native-maps no puede validarse en web:
+- documentar como mobile-only.
+- web fallback debe pasar.
+
+Tarea 13 — Git/checkpoint
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "feat: add mobile map and strict geofence controls"
+
+Si Git funciona:
+
+git push origin stage-2c-mobile-map-geofence
+
+Si Git está bloqueado:
+- documentar checkpoint Replit.
+- indicar pasos manuales.
+
+No crear release tag.
+
+Criterios de aceptación:
+
+Stage 2C queda completo si:
+
+1. Stage 1 baseline sigue pasando qa:smoke.
+2. Stage 2A/2B validations siguen pasando.
+3. Credenciales QA ya no están dispersas sin control.
+4. qa:doctor existe.
+5. PlacesMapView existe con fallback web.
+6. map tab muestra mapa o fallback estable.
+7. strict geofence posting es configurable.
+8. strict geofence OFF no rompe QA.
+9. strict geofence ON bloquea posting fuera del radio.
+10. qa:geofence pasa.
+11. Expo Go testing docs existen.
+12. No se guarda ubicación exacta.
+13. No se muestra presencia individual sensible.
+14. Typecheck pasa.
+15. Docs actualizadas.
+
+Entrega final esperada:
+
+## Stage 2C — Mobile Map + Strict Geofence Resultado
+
+### Estado
+- Stage 1 baseline:
+- Stage 2A graph:
+- Stage 2B geo:
+- QA credentials cleanup:
+- Mobile map:
+- Web fallback:
+- Strict geofence:
+- Expo Go readiness:
+- Privacy:
+- qa:geofence:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- qa:doctor:
+- typecheck:
+- qa:smoke:
+- check graph:
+- qa:graph:
+- qa:geo:
+- qa:geofence:
+
+### UI nueva
+-
+
+### Config nueva
+-
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Archivos creados
+-
+
+### Archivos modificados
+-
+
+### Bloqueadores
+-
+
+### Known limitations
+-
+
+### Próximo stage
+Si todo pasa:
+Stage 2D — event/group notifications + counters + graph insight ranking.
+
+Si falla mapa:
+Stage 2C-Map-Fix.
+
+Si falla geofence:
+Stage 2C-Geofence-Fix.
+
+Si falla QA secrets:
+Stage 2C-QA-Security-Fix.

@@ -16,10 +16,11 @@
  */
 
 import { createAdminClient, createAnonClient, createUserClient } from './lib/supabase-admin.mjs';
-
-const QA_EMAIL_A = 'qa.aldea.a@example.com';
-const QA_EMAIL_B = 'qa.aldea.b@example.com';
-const QA_PASSWORD = 'Ald3aQA!2026';
+import {
+  QA_USER_A_EMAIL as QA_EMAIL_A,
+  QA_USER_A_PASSWORD as QA_PASSWORD,
+  QA_USER_B_EMAIL as QA_EMAIL_B
+} from './lib/qa-config.mjs';
 const PARK_KENNEDY_ID = '11111111-1111-4111-8111-111111111111';
 
 let passed = 0;

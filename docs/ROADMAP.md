@@ -318,8 +318,9 @@ Cada etapa tiene objetivo, alcance, entregables, criterios de aceptación, depen
 | Place detail: geospatial context + refined graph insights | 2B ✅ |
 | user_connections automáticas (grupo/evento join) | 2C |
 | Edge Functions para tagging server-side | 2C |
-| Mapa nativo interactivo (react-native-maps) | 2C |
-| Geofenced posting estricto | 2C |
+| Mapa nativo interactivo (react-native-maps) | 2C ✅ |
+| Geofenced posting estricto configurable | 2C ✅ |
+| QA credentials centralizadas (qa-config.mjs) | 2C ✅ |
 | Neo4j sync + traversals multi-hop | 3 |
 
 ---

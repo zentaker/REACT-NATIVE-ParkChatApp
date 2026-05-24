@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatMessageBubble } from "../../../components/ChatMessageBubble";
@@ -19,8 +19,21 @@ import {
   sendPlaceMessage,
   subscribeToPlaceMessages
 } from "../../../services/messages";
+import {
+  canPostInPlaceChat,
+  shouldRequireGeofencePosting,
+  type GeofenceResult
+} from "../../../services/geofence";
+import {
+  getCurrentLocation,
+  getLocationPermissionStatus
+} from "../../../services/location";
+import { getPlaceById } from "../../../services/places";
+import { upsertUserPlace } from "../../../services/graph";
 import { getCurrentProfile } from "../../../services/profile";
+import type { Place } from "../../../types";
 import type { PlaceMessage, Profile } from "../../../types";
+import type { UserLocation } from "../../../types/location";
 
 function upsertMessage(list: PlaceMessage[], next: PlaceMessage): PlaceMessage[] {
   const idx = list.findIndex((item) => item.id === next.id);
@@ -46,6 +59,9 @@ export default function PlaceChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [reportTarget, setReportTarget] = useState<PlaceMessage | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [place, setPlace] = useState<Place | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [geofence, setGeofence] = useState<GeofenceResult | null>(null);
   const { isBlocked, markBlocked } = useBlockedUsers();
   const profileRef = useRef<Profile | null>(null);
   const sentIdsRef = useRef<Set<string>>(new Set());
@@ -67,7 +83,6 @@ export default function PlaceChatScreen() {
       });
 
     const unsubscribe = subscribeToPlaceMessages(placeId, (message) => {
-      // Dedupe: skip realtime events that mirror a message we just sent locally.
       if (sentIdsRef.current.has(message.id)) {
         sentIdsRef.current.delete(message.id);
         return;
@@ -75,11 +90,38 @@ export default function PlaceChatScreen() {
       setMessages((current) => upsertMessage(current, message));
     });
 
+    getPlaceById(placeId).then((nextPlace) => {
+      if (isMounted && nextPlace) {
+        setPlace(nextPlace);
+      }
+    });
+
+    upsertUserPlace(placeId, "active").catch(() => {});
+
+    getLocationPermissionStatus()
+      .then(async (status) => {
+        if (status === "granted") {
+          const loc = await getCurrentLocation();
+          if (isMounted) setUserLocation(loc);
+        }
+      })
+      .catch(() => {});
+
     return () => {
       isMounted = false;
       unsubscribe();
     };
   }, [placeId]);
+
+  useEffect(() => {
+    if (!place) return;
+    const result = canPostInPlaceChat({
+      userLocation,
+      place,
+      requireInsideRadius: shouldRequireGeofencePosting()
+    });
+    setGeofence(result);
+  }, [place, userLocation]);
 
   const handleSend = useCallback(
     async (body: string) => {
@@ -88,13 +130,11 @@ export default function PlaceChatScreen() {
 
       try {
         const message = await sendPlaceMessage(placeId, body);
-        // Mark the real id as locally-known so the realtime echo is ignored.
         sentIdsRef.current.add(message.id);
         setMessages((current) => replaceOptimistic(current, optimistic.id, message));
       } catch (error) {
         setMessages((current) => current.filter((item) => item.id !== optimistic.id));
         if (error instanceof MessageRateLimitError) {
-          // Let MessageInput render the inline cooldown / duplicate hint.
           throw error;
         }
         Alert.alert("No se pudo enviar", error instanceof Error ? error.message : "Intentalo otra vez.");
@@ -169,6 +209,9 @@ export default function PlaceChatScreen() {
   );
 
   const hiddenCount = messages.length - visibleMessages.length;
+  const strictMode = shouldRequireGeofencePosting();
+  const canPost = geofence?.canPost ?? true;
+  const geofenceMsg = geofence?.message ?? null;
 
   return (
     <SafeAreaView edges={["left", "right", "bottom"]} style={styles.screen}>
@@ -207,7 +250,14 @@ export default function PlaceChatScreen() {
         </ScrollView>
 
         <View style={styles.inputWrap}>
-          <MessageInput onSend={handleSend} />
+          {geofenceMsg ? (
+            <View style={[styles.geofenceNotice, !canPost && strictMode && styles.geofenceBlocking]}>
+              <Text style={[styles.geofenceText, !canPost && strictMode && styles.geofenceTextBlocking]}>
+                {geofenceMsg}
+              </Text>
+            </View>
+          ) : null}
+          <MessageInput disabled={!canPost} onSend={handleSend} />
         </View>
       </KeyboardAvoidingView>
 
@@ -243,6 +293,24 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.background,
     borderTopColor: UI_COLORS.border,
     borderTopWidth: 1,
+    gap: 6,
     padding: 12
+  },
+  geofenceNotice: {
+    backgroundColor: UI_COLORS.surfaceMuted,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  geofenceBlocking: {
+    backgroundColor: "#fdf0eb"
+  },
+  geofenceText: {
+    color: UI_COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 17
+  },
+  geofenceTextBlocking: {
+    color: UI_COLORS.coral
   }
 });

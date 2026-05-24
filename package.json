@@ -34,7 +34,9 @@
     "supabase:apply:graph": "node scripts/apply-supabase-sql.mjs --file supabase/graph-ready.sql && node scripts/apply-supabase-sql.mjs --file supabase/graph-ready-policies.sql",
     "supabase:check:graph": "node scripts/check-graph-ready.mjs",
     "qa:graph": "node scripts/qa-graph-ready.mjs",
-    "qa:geo": "node scripts/qa-geospatial.mjs"
+    "qa:geo": "node scripts/qa-geospatial.mjs",
+    "qa:geofence": "node scripts/qa-geofence.mjs",
+    "qa:doctor": "node scripts/doctor-qa-secrets.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -53,6 +55,7 @@
     "react-native": "^0.79.6",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-get-random-values": "^1.11.0",
+    "react-native-maps": "1.20.1",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.11.1",

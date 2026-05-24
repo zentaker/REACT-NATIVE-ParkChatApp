@@ -7,6 +7,7 @@ import { LocationPermissionCard } from "../../components/LocationPermissionCard"
 import { LoadingState } from "../../components/LoadingState";
 import { NearbyPlaceBadge } from "../../components/NearbyPlaceBadge";
 import { PlaceCard } from "../../components/PlaceCard";
+import { PlacesMapView } from "../../components/PlacesMapView";
 import { SafetyNotice } from "../../components/SafetyNotice";
 import { UI_COLORS } from "../../lib/constants";
 import {
@@ -75,15 +76,15 @@ export default function MapScreen() {
     <SafeAreaView edges={["left", "right"]} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Lugares</Text>
+          <Text style={styles.title}>Mapa vivo</Text>
           <Text style={styles.subtitle}>
             {hasLocation
-              ? "Ordenados por cercanía a tu ubicación"
+              ? "Lugares ordenados por cercanía"
               : "Espacios públicos de la comunidad"}
           </Text>
         </View>
 
-        <SafetyNotice message="Mostramos actividad agregada por lugar, no la posición exacta de personas." />
+        <SafetyNotice message="Tu ubicación se usa solo para ordenar lugares cercanos. No se comparte ni se guarda." />
 
         <LocationPermissionCard
           status={permissionStatus}
@@ -92,31 +93,42 @@ export default function MapScreen() {
 
         {isLoading ? <LoadingState /> : null}
 
+        {!isLoading && places.length > 0 ? (
+          <PlacesMapView places={places} userLocation={userLocation} />
+        ) : null}
+
         {!isLoading && places.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No hay lugares disponibles aún.</Text>
           </View>
         ) : null}
 
-        <View style={styles.list}>
-          {places.map((place) => (
-            <View key={place.id}>
-              <PlaceCard
-                onPress={() => router.push({ pathname: "/place/[id]", params: { id: place.id } })}
-                place={place}
-              />
-              {place.distanceLabel ? (
-                <View style={styles.badgeRow}>
-                  <NearbyPlaceBadge
-                    distanceLabel={place.distanceLabel}
-                    isInsideRadius={place.isInsideRadius}
-                    isNearby={place.isNearby}
+        {!isLoading && places.length > 0 ? (
+          <View style={styles.listSection}>
+            <Text style={styles.listTitle}>Lista de lugares</Text>
+            <View style={styles.list}>
+              {places.map((place) => (
+                <View key={place.id}>
+                  <PlaceCard
+                    onPress={() =>
+                      router.push({ pathname: "/place/[id]", params: { id: place.id } })
+                    }
+                    place={place}
                   />
+                  {place.distanceLabel ? (
+                    <View style={styles.badgeRow}>
+                      <NearbyPlaceBadge
+                        distanceLabel={place.distanceLabel}
+                        isInsideRadius={place.isInsideRadius}
+                        isNearby={place.isNearby}
+                      />
+                    </View>
+                  ) : null}
                 </View>
-              ) : null}
+              ))}
             </View>
-          ))}
-        </View>
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -145,6 +157,16 @@ const styles = StyleSheet.create({
     color: UI_COLORS.textMuted,
     fontSize: 14,
     lineHeight: 20
+  },
+  listSection: {
+    gap: 12
+  },
+  listTitle: {
+    color: UI_COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase"
   },
   list: {
     gap: 12
