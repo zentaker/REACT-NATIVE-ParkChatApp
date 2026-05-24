@@ -9,29 +9,62 @@ type PlaceCardProps = {
 };
 
 export function PlaceCard({ place, onPress }: PlaceCardProps) {
+  const hasActivity =
+    (place.activeUsersCount ?? 0) > 0 ||
+    (place.activeConversationsCount ?? 0) > 0;
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
       <View style={styles.headerRow}>
         <View style={styles.titleBlock}>
-          <Text style={styles.name}>{place.name}</Text>
+          <Text style={styles.name} numberOfLines={1}>{place.name}</Text>
           <Text style={styles.meta}>
-            {PLACE_TYPE_LABELS[place.type]} {place.city ? `en ${place.city}` : ""}
+            {PLACE_TYPE_LABELS[place.type]}{place.city ? ` · ${place.city}` : ""}
           </Text>
         </View>
-        <View style={styles.activePill}>
-          <View style={styles.activeDot} />
-          <Text style={styles.activeText}>{place.activeUsersCount ?? 0}</Text>
+        <View style={[styles.activePill, !hasActivity && styles.activePillMuted]}>
+          <View style={[styles.activeDot, !hasActivity && styles.activeDotMuted]} />
+          <Text style={[styles.activeText, !hasActivity && styles.activeTextMuted]}>
+            {place.activeUsersCount ?? 0}
+          </Text>
         </View>
       </View>
 
-      <Text numberOfLines={2} style={styles.description}>
-        {place.description}
-      </Text>
+      {place.description ? (
+        <Text numberOfLines={2} style={styles.description}>
+          {place.description}
+        </Text>
+      ) : null}
 
       <View style={styles.statsRow}>
-        <Text style={styles.stat}>{place.activeConversationsCount ?? 0} conversaciones</Text>
-        <Text style={styles.stat}>{place.groupsCount ?? 0} grupos</Text>
-        <Text style={styles.stat}>{place.eventsCount ?? 0} eventos</Text>
+        {(place.activeConversationsCount ?? 0) > 0 ? (
+          <View style={styles.statChip}>
+            <Text style={styles.statText}>💬 {place.activeConversationsCount}</Text>
+          </View>
+        ) : null}
+        {(place.groupsCount ?? 0) > 0 ? (
+          <View style={styles.statChip}>
+            <Text style={styles.statText}>👥 {place.groupsCount} grupos</Text>
+          </View>
+        ) : null}
+        {(place.eventsCount ?? 0) > 0 ? (
+          <View style={styles.statChip}>
+            <Text style={styles.statText}>📅 {place.eventsCount} eventos</Text>
+          </View>
+        ) : null}
+        {(place.activeConversationsCount ?? 0) === 0 && (place.groupsCount ?? 0) === 0 && (place.eventsCount ?? 0) === 0 ? (
+          <View style={styles.statChip}>
+            <Text style={styles.statText}>Sé el primero en participar</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.cta}>Ver comunidad →</Text>
       </View>
     </Pressable>
   );
@@ -41,9 +74,9 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: UI_COLORS.surface,
     borderColor: UI_COLORS.border,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    gap: 12,
+    gap: 10,
     padding: 16
   },
   pressed: {
@@ -57,25 +90,28 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     flex: 1,
-    gap: 4
+    gap: 3
   },
   name: {
     color: UI_COLORS.text,
     fontSize: 18,
-    fontWeight: "700"
+    fontWeight: "800"
   },
   meta: {
     color: UI_COLORS.textMuted,
-    fontSize: 13
+    fontSize: 12
   },
   activePill: {
     alignItems: "center",
     backgroundColor: "#e7f0eb",
     borderRadius: 999,
     flexDirection: "row",
-    gap: 6,
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 6
+    paddingVertical: 5
+  },
+  activePillMuted: {
+    backgroundColor: UI_COLORS.surfaceMuted
   },
   activeDot: {
     backgroundColor: UI_COLORS.success,
@@ -83,10 +119,16 @@ const styles = StyleSheet.create({
     height: 8,
     width: 8
   },
+  activeDotMuted: {
+    backgroundColor: UI_COLORS.textMuted
+  },
   activeText: {
     color: UI_COLORS.primaryDark,
     fontSize: 12,
     fontWeight: "700"
+  },
+  activeTextMuted: {
+    color: UI_COLORS.textMuted
   },
   description: {
     color: UI_COLORS.textMuted,
@@ -96,14 +138,27 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8
+    gap: 6
   },
-  stat: {
+  statChip: {
     backgroundColor: UI_COLORS.surfaceMuted,
     borderRadius: 999,
-    color: UI_COLORS.text,
-    fontSize: 12,
     paddingHorizontal: 10,
-    paddingVertical: 6
+    paddingVertical: 5
+  },
+  statText: {
+    color: UI_COLORS.text,
+    fontSize: 12
+  },
+  footer: {
+    borderTopColor: UI_COLORS.border,
+    borderTopWidth: 1,
+    marginTop: 2,
+    paddingTop: 10
+  },
+  cta: {
+    color: UI_COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800"
   }
 });

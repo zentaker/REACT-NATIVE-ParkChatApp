@@ -1,6 +1,6 @@
 # Estado actual en Replit
 
-Snapshot del workspace al 24-may-2026. **Etapa 1E — Release v0.1.0 en proceso (push pendiente).**
+Snapshot del workspace al 24-may-2026. **Stage 2E — UX Polish + Pilot Readiness: COMPLETADO.**
 
 ## Identificacion
 
@@ -16,17 +16,19 @@ Snapshot del workspace al 24-may-2026. **Etapa 1E — Release v0.1.0 en proceso 
 - Estado: **running**
 - Preview URL: `https://50b81fc1-2e35-482d-9b2f-19cab751220c-00-1cjkyqq5duxei.worf.replit.dev/`
 
-## Validaciones finales (Etapa 1D)
+## Validaciones finales (Stage 2E)
 
 | Check | Estado | Resultado |
 |---|---|---|
-| `npm run doctor:node` | ✅ OK | URL válida, anon key presente, backend real activo |
 | `npm run typecheck` | ✅ OK | 0 errores TypeScript |
-| `npm run supabase:doctor-db` | ✅ OK | 10/10 checks (secrets, Management API, SQL) |
-| `npm run qa:seed` | ✅ OK | QA users + profiles + seed data |
 | `npm run qa:smoke` | ✅ **23/23 PASS** | auth, places, chat, reports, blocks, groups, events, RLS |
+| `npm run supabase:check:graph` | ✅ **33/33 OK** | graph schema + indexes |
+| `npm run qa:graph` | ✅ **23/23 PASS** | graph-ready layer |
+| `npm run qa:geo` | ✅ **12/12 PASS** | geospatial nearby layer |
+| `npm run qa:geofence` | ✅ **15/15 PASS** | mobile map + strict geofence |
+| `npm run supabase:check:notifications` | ✅ **12/12 OK** | notifications schema + policies |
+| `npm run qa:notifications` | ✅ **12/12 PASS** | in-app notifications |
 | `npm run lint` | — N/A | Script no existe — deferred |
-| `npm run test` | — N/A | Script no existe — deferred |
 
 ## Secrets configurados en Replit
 

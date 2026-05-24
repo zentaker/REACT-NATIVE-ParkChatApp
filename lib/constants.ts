@@ -26,10 +26,10 @@ export const UI_COLORS = {
 } as const;
 
 export const ACCESS_LEVEL_LABELS = {
-  public: "Publico",
-  local_only: "Local",
-  invite_only: "Invitacion",
-  approval_required: "Aprobacion",
+  public: "Público",
+  local_only: "Solo local",
+  invite_only: "Solo invitación",
+  approval_required: "Requiere aprobación",
   verified_only: "Verificado",
   private: "Privado"
 } as const;

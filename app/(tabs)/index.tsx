@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { EmptyState } from "../../components/EmptyState";
 import { LoadingState } from "../../components/LoadingState";
 import { PlaceCard } from "../../components/PlaceCard";
-import { SafetyNotice } from "../../components/SafetyNotice";
 import { UI_COLORS } from "../../lib/constants";
 import { getNearbyPlaces } from "../../services/places";
 import type { Place } from "../../types";
@@ -50,17 +49,21 @@ export default function SpacesScreen() {
         refreshControl={<RefreshControl onRefresh={handleRefresh} refreshing={isRefreshing} tintColor={UI_COLORS.primary} />}
       >
         <View style={styles.header}>
-          <Text style={styles.kicker}>Etapa 0</Text>
+          <Text style={styles.kicker}>Comunidades locales</Text>
           <Text style={styles.title}>Espacios cercanos</Text>
-          <Text style={styles.subtitle}>Entra al espacio digital de un lugar fisico y mira que esta conversando la comunidad.</Text>
+          <Text style={styles.subtitle}>
+            Entra al espacio digital de un lugar real y mira qué está conversando su comunidad.
+          </Text>
         </View>
-
-        <SafetyNotice />
 
         {isLoading ? <LoadingState /> : null}
 
         {!isLoading && places.length === 0 ? (
-          <EmptyState title="No hay lugares aun" description="Cuando conectes Supabase, apareceran espacios cercanos desde Postgres." />
+          <EmptyState
+            icon="🏡"
+            title="Aún no hay lugares"
+            description="Los espacios de tu zona aparecerán aquí. Desliza hacia abajo para actualizar."
+          />
         ) : null}
 
         <View style={styles.list}>
@@ -88,19 +91,20 @@ const styles = StyleSheet.create({
     paddingBottom: 32
   },
   header: {
-    gap: 8
+    gap: 6
   },
   kicker: {
     color: UI_COLORS.coral,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
+    letterSpacing: 0.8,
     textTransform: "uppercase"
   },
   title: {
     color: UI_COLORS.text,
     fontSize: 30,
     fontWeight: "900",
-    letterSpacing: 0
+    letterSpacing: -0.3
   },
   subtitle: {
     color: UI_COLORS.textMuted,

@@ -1,11 +1,16 @@
 import { Link, router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { APP_NAME, UI_COLORS } from "../../lib/constants";
-import { isSupabaseConfigured } from "../../lib/supabase";
 import { signInWithEmail } from "../../services/auth";
+
+const FEATURES = [
+  { icon: "🏡", text: "Comunidades nacidas en lugares reales" },
+  { icon: "💬", text: "Chats, grupos y eventos de tu zona" },
+  { icon: "🔒", text: "Tu ubicación exacta nunca se comparte" }
+];
 
 export default function SignInScreen() {
   const [email, setEmail] = useState("");
@@ -13,13 +18,20 @@ export default function SignInScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSignIn() {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Campos incompletos", "Ingresa tu email y contraseña para continuar.");
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       await signInWithEmail({ email, password });
       router.replace("/");
     } catch (error) {
-      Alert.alert("No se pudo iniciar sesion", error instanceof Error ? error.message : "Intentalo otra vez.");
+      Alert.alert(
+        "No se pudo iniciar sesión",
+        error instanceof Error ? error.message : "Revisá tus datos e intentá otra vez."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -27,11 +39,20 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.hero}>
           <Text style={styles.kicker}>Bienvenido a</Text>
           <Text style={styles.title}>{APP_NAME}</Text>
-          <Text style={styles.subtitle}>Entra a los espacios digitales de lugares reales.</Text>
+          <Text style={styles.subtitle}>Entra a la comunidad viva de cada lugar.</Text>
+
+          <View style={styles.features}>
+            {FEATURES.map((f, i) => (
+              <View key={i} style={styles.featureRow}>
+                <Text style={styles.featureIcon}>{f.icon}</Text>
+                <Text style={styles.featureText}>{f.text}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.form}>
@@ -46,7 +67,7 @@ export default function SignInScreen() {
           />
           <TextInput
             onChangeText={setPassword}
-            placeholder="Password"
+            placeholder="Contraseña"
             placeholderTextColor={UI_COLORS.textMuted}
             secureTextEntry
             style={styles.input}
@@ -62,14 +83,10 @@ export default function SignInScreen() {
           </Pressable>
         </View>
 
-        {!isSupabaseConfigured && (
-          <Text style={styles.helper}>Sin credenciales de Supabase, Aldea usa datos mock para desarrollo.</Text>
-        )}
-
         <Link href="/sign-up" style={styles.link}>
-          Crear cuenta
+          ¿Eres nuevo? Crea una cuenta
         </Link>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -79,31 +96,60 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.background,
     flex: 1
   },
-  container: {
-    flex: 1,
+  scroll: {
+    flexGrow: 1,
     gap: 24,
     justifyContent: "center",
-    padding: 24
+    padding: 24,
+    paddingBottom: 40
   },
-  header: {
-    gap: 8
+  hero: {
+    gap: 12
   },
   kicker: {
     color: UI_COLORS.coral,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
+    letterSpacing: 1,
     textTransform: "uppercase"
   },
   title: {
     color: UI_COLORS.text,
     fontSize: 42,
     fontWeight: "900",
-    letterSpacing: 0
+    letterSpacing: -0.5
   },
   subtitle: {
     color: UI_COLORS.textMuted,
     fontSize: 16,
     lineHeight: 23
+  },
+  features: {
+    backgroundColor: UI_COLORS.surface,
+    borderColor: UI_COLORS.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 0,
+    marginTop: 4,
+    overflow: "hidden"
+  },
+  featureRow: {
+    alignItems: "center",
+    borderBottomColor: UI_COLORS.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13
+  },
+  featureIcon: {
+    fontSize: 18
+  },
+  featureText: {
+    color: UI_COLORS.text,
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20
   },
   form: {
     gap: 12
@@ -133,11 +179,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.78
-  },
-  helper: {
-    color: UI_COLORS.textMuted,
-    fontSize: 13,
-    lineHeight: 19
   },
   link: {
     color: UI_COLORS.primary,

@@ -38,23 +38,37 @@ export default function PlaceEventsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Eventos del lugar</Text>
-          <Text style={styles.subtitle}>Encuentros espontaneos nacidos desde un espacio o una conversacion.</Text>
+          <Text style={styles.subtitle}>
+            Actividades nacidas desde este espacio. Encuentros espontáneos o planeados.
+          </Text>
         </View>
 
-        <SafetyNotice message="Prioriza lugares publicos, reglas claras y anfitriones identificables para los eventos presenciales." />
+        <SafetyNotice
+          tone="event"
+          title="Encuentros presenciales"
+          message="Prioriza lugares públicos, reglas claras y anfitriones identificables para los eventos presenciales."
+        />
 
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push({ pathname: "/place/[id]/new-event" as never, params: { id: placeId } as never })}
           style={({ pressed }) => [styles.createButton, pressed && { opacity: 0.78 }]}
         >
-          <Text style={styles.createText}>Crear evento</Text>
+          <Text style={styles.createText}>+ Crear un encuentro</Text>
         </Pressable>
 
         {isLoading ? <LoadingState label="Cargando eventos" /> : null}
 
         {!isLoading && events.length === 0 ? (
-          <EmptyState title="Sin eventos todavia" description="La Etapa 1 conectara creacion real de eventos con Supabase." />
+          <EmptyState
+            icon="📅"
+            title="Aún no hay eventos"
+            description="Crea un encuentro espontáneo en este lugar. Puede ser una sesión de trabajo, un picnic, un partido o lo que surja."
+            action={{
+              label: "Crear el primer evento",
+              onPress: () => router.push({ pathname: "/place/[id]/new-event" as never, params: { id: placeId } as never })
+            }}
+          />
         ) : null}
 
         <View style={styles.list}>
@@ -82,13 +96,13 @@ const styles = StyleSheet.create({
     paddingBottom: 32
   },
   header: {
-    gap: 8
+    gap: 6
   },
   title: {
     color: UI_COLORS.text,
     fontSize: 28,
     fontWeight: "900",
-    letterSpacing: 0
+    letterSpacing: -0.3
   },
   subtitle: {
     color: UI_COLORS.textMuted,

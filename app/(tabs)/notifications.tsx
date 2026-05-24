@@ -35,6 +35,17 @@ const TYPE_COLORS: Record<string, string> = {
   topic_trending: UI_COLORS.primary
 };
 
+const TYPE_ICONS: Record<string, string> = {
+  group_join_request: "👋",
+  group_member_approved: "✅",
+  group_member_rejected: "❌",
+  event_rsvp_changed: "📅",
+  report_created: "🚩",
+  report_status_changed: "🔔",
+  geofence_blocked_post: "📍",
+  topic_trending: "🔥"
+};
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -43,7 +54,8 @@ function timeAgo(iso: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `hace ${hrs}h`;
   const days = Math.floor(hrs / 24);
-  return `hace ${days}d`;
+  if (days < 7) return `hace ${days}d`;
+  return new Date(iso).toLocaleDateString("es", { day: "numeric", month: "short" });
 }
 
 function NotificationItem({
@@ -55,6 +67,7 @@ function NotificationItem({
 }) {
   const tag = TYPE_LABELS[notification.type] ?? "Info";
   const tagColor = TYPE_COLORS[notification.type] ?? UI_COLORS.textMuted;
+  const icon = TYPE_ICONS[notification.type] ?? "🔔";
 
   return (
     <Pressable
@@ -66,7 +79,10 @@ function NotificationItem({
         pressed && styles.pressed
       ]}
     >
-      {!notification.isRead && <View style={styles.unreadDot} />}
+      <View style={styles.iconWrap}>
+        <Text style={styles.itemIcon}>{icon}</Text>
+        {!notification.isRead && <View style={styles.unreadDot} />}
+      </View>
       <View style={styles.itemBody}>
         <View style={styles.itemHeader}>
           <View style={[styles.tag, { backgroundColor: tagColor + "22" }]}>
@@ -76,7 +92,7 @@ function NotificationItem({
         </View>
         <Text style={styles.title}>{notification.title}</Text>
         {notification.body ? (
-          <Text style={styles.body}>{notification.body}</Text>
+          <Text style={styles.body} numberOfLines={2}>{notification.body}</Text>
         ) : null}
       </View>
     </Pressable>
@@ -124,7 +140,7 @@ export default function NotificationsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title}>Notificaciones</Text>
+            <Text style={styles.screenTitle}>Avisos</Text>
             {unreadCount > 0 ? (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : String(unreadCount)}</Text>
@@ -142,12 +158,13 @@ export default function NotificationsScreen() {
           ) : null}
         </View>
 
-        {isLoading ? <LoadingState label="Cargando notificaciones" /> : null}
+        {isLoading ? <LoadingState label="Cargando avisos" /> : null}
 
         {!isLoading && notifications.length === 0 ? (
           <EmptyState
-            title="Sin notificaciones"
-            description="Aquí aparecerán avisos de grupos, eventos y actividad relevante para ti."
+            icon="🔔"
+            title="Aún no hay avisos"
+            description="Cuando alguien interactúe contigo en un grupo, evento o lugar, aparecerá aquí."
           />
         ) : null}
 
@@ -183,7 +200,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10
   },
-  title: {
+  screenTitle: {
     color: UI_COLORS.text,
     fontSize: 28,
     fontWeight: "900"
@@ -212,13 +229,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700"
   },
+  pressed: {
+    opacity: 0.78
+  },
   list: {
     gap: 2
   },
   item: {
     backgroundColor: UI_COLORS.surface,
     borderColor: UI_COLORS.border,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     flexDirection: "row",
     gap: 12,
@@ -226,21 +246,28 @@ const styles = StyleSheet.create({
   },
   itemUnread: {
     backgroundColor: "#f0f8f5",
-    borderColor: UI_COLORS.teal + "44"
+    borderColor: UI_COLORS.teal + "55"
   },
-  pressed: {
-    opacity: 0.78
+  iconWrap: {
+    alignItems: "center",
+    position: "relative",
+    width: 36
+  },
+  itemIcon: {
+    fontSize: 22
   },
   unreadDot: {
-    backgroundColor: UI_COLORS.teal,
+    backgroundColor: UI_COLORS.coral,
     borderRadius: 5,
-    height: 10,
-    marginTop: 4,
-    width: 10
+    height: 8,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    width: 8
   },
   itemBody: {
     flex: 1,
-    gap: 6
+    gap: 5
   },
   itemHeader: {
     alignItems: "center",
@@ -260,6 +287,12 @@ const styles = StyleSheet.create({
   time: {
     color: UI_COLORS.textMuted,
     fontSize: 11
+  },
+  title: {
+    color: UI_COLORS.text,
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 19
   },
   body: {
     color: UI_COLORS.textMuted,

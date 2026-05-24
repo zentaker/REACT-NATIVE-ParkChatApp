@@ -38,23 +38,33 @@ export default function PlaceGroupsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Grupos del lugar</Text>
-          <Text style={styles.subtitle}>Comunidades hiperlocales con distintos niveles de acceso.</Text>
+          <Text style={styles.subtitle}>
+            Únete a personas que vuelven a este espacio. Cada grupo tiene su propio nivel de acceso.
+          </Text>
         </View>
 
-        <SafetyNotice message="Los grupos pueden ser publicos, locales, por aprobacion o privados segun el nivel de cuidado necesario." />
+        <SafetyNotice message="Los grupos pueden ser públicos, locales, por aprobación o privados según el nivel de cuidado necesario." />
 
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push({ pathname: "/place/[id]/new-group" as never, params: { id: placeId } as never })}
           style={({ pressed }) => [styles.createButton, pressed && { opacity: 0.78 }]}
         >
-          <Text style={styles.createText}>Crear grupo</Text>
+          <Text style={styles.createText}>+ Crear una aldea aquí</Text>
         </Pressable>
 
         {isLoading ? <LoadingState label="Cargando grupos" /> : null}
 
         {!isLoading && groups.length === 0 ? (
-          <EmptyState title="Sin grupos todavia" description="La Etapa 1 conectara creacion real de grupos con Supabase." />
+          <EmptyState
+            icon="👥"
+            title="Aún no hay grupos"
+            description="Crea una aldea dentro de este lugar y reúne a personas que vuelven a este espacio."
+            action={{
+              label: "Crear el primer grupo",
+              onPress: () => router.push({ pathname: "/place/[id]/new-group" as never, params: { id: placeId } as never })
+            }}
+          />
         ) : null}
 
         <View style={styles.list}>
@@ -82,13 +92,13 @@ const styles = StyleSheet.create({
     paddingBottom: 32
   },
   header: {
-    gap: 8
+    gap: 6
   },
   title: {
     color: UI_COLORS.text,
     fontSize: 28,
     fontWeight: "900",
-    letterSpacing: 0
+    letterSpacing: -0.3
   },
   subtitle: {
     color: UI_COLORS.textMuted,

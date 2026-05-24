@@ -93,6 +93,22 @@ Verificado contra `app/`, `services/`, `supabase/`, `package.json`, `STAGE_0_COM
 - **Docs creados** — `ETAPA_1D_RELEASE_QA.md`, `RELEASE_V0_1_0_CHECKLIST.md`, `SUPABASE_DB_AUTOMATION.md`.
 - **Release readiness: GO** — pendiente aprobación de usuario para tag `v0.1.0`.
 
+### Stage 2E — UX Polish + Pilot Readiness (hecho — 24-may-2026)
+
+- **Design tokens**: `theme/tokens.ts` — colors, spacing, radius, fontSize, fontWeight, semantic.
+- **Auth polish**: onboarding hero en sign-in (3 features), labels en campos sign-up, validaciones client-side, privacy notice.
+- **Copy limpio**: eliminadas referencias a "Etapa 0", "Etapa 1", "Supabase" en UI visible al usuario final.
+- **EmptyState**: nuevas props `icon` (emoji) y `action` (CTA button).
+- **ACCESS_LEVEL_LABELS**: acentos correctos ("Público", "Solo invitación", "Requiere aprobación").
+- **PlaceCard**: footer "Ver comunidad →", chips stats condicionales, diferenciación visual activo/inactivo.
+- **Map**: secciones "Cerca de ti" / "Lugares activos", kicker editorial, LoadingState con label descriptivo.
+- **Spaces/index**: kicker "Comunidades locales" (no "Etapa 0"), empty state amigable.
+- **Groups/Events**: empty state con icono + CTA a new-group / new-event, subtítulos con copy de producto.
+- **Notifications**: iconos por tipo (👋 ✅ ❌ 📅 🚩), unreadDot como badge, header "Avisos", empty state 🔔.
+- **Profile**: layout tiled 2x2 para acciones, avatar 64px, safety mode como pill, bio con placeholder italic.
+- **Docs**: `STAGE_2E_UX_AUDIT.md`, `PILOT_READINESS.md`, `UX_QA_CHECKLIST.md`, `STAGE_2E_UX_POLISH_REPORT.md`.
+- **Validaciones**: typecheck 0 errores, qa:smoke 23/23, qa:graph 23/23, qa:geo 12/12, qa:geofence 15/15, qa:notifications 12/12.
+
 ### Etapa 1E — Release v0.1.0 (en proceso — 24-may-2026)
 
 - **Validaciones completas**: `doctor:node` ✅, `supabase:doctor-db` 10/10 ✅, `typecheck` 0 errores ✅, `qa:smoke` 23/23 PASS ✅.

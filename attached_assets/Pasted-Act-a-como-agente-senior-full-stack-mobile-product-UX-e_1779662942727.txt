@@ -1,0 +1,579 @@
+Actúa como agente senior full-stack mobile + product UX engineer para ParkChat / Aldea.
+
+Stage:
+Stage 2E — UX Polish, Onboarding, Empty States and Pilot Readiness
+
+Contexto:
+Stage 1 está cerrado y v0.1.0 fue publicado.
+Stage 2A graph-ready layer está completo.
+Stage 2B geospatial nearby layer está completo.
+Stage 2C mobile map + strict geofence está completo.
+Stage 2D social polish + notifications + counters + graph ranking está completo.
+
+Estado confirmado:
+- typecheck: 0 errores.
+- qa:doctor: OK.
+- qa:smoke: 23/23 PASS.
+- check:graph: 33/33 PASS.
+- qa:graph: 23/23 PASS.
+- qa:geo: 12/12 PASS.
+- qa:geofence: 15/15 PASS.
+- check:notifications: 12/12 OK.
+- qa:notifications: 12/12 PASS.
+- Supabase real operativo.
+- RLS operativo.
+- Realtime operativo.
+- Notificaciones internas operativas.
+- Graph insights operativos.
+- Geofencing configurable operativo.
+- Mapa nativo/fallback web operativo.
+- La app ya tiene tabs: Mapa, Lugares, Chats, Avisos, Perfil.
+
+Objetivo de Stage 2E:
+Pulir ParkChat/Aldea para que se sienta como un producto piloto usable, no solo como una demo técnica.
+
+El foco es:
+1. Onboarding inicial.
+2. Mejorar experiencia de login/register.
+3. Empty states útiles.
+4. Loading/error states consistentes.
+5. Home/Mapa más editorial y social.
+6. Cards más informativas y visualmente consistentes.
+7. Look & feel inspirado en NomadTable, sin copiar marca/assets.
+8. Pilot readiness: checklist para probar con usuarios reales.
+9. Mantener toda la funcionalidad previa intacta.
+
+No objetivos:
+- No agregar Neo4j todavía.
+- No agregar matching romántico.
+- No agregar feed global.
+- No agregar IA generativa.
+- No implementar push notifications reales.
+- No cambiar schema salvo bug crítico.
+- No tocar secrets.
+- No desactivar RLS.
+- No romper Stage 1/2A/2B/2C/2D.
+- No crear release/tag todavía.
+- No copiar branding, textos exactos, logos o assets de NomadTable.
+- No rehacer toda la app desde cero.
+
+Principio visual:
+Inspirarse en patrones de producto tipo NomadTable:
+- mobile-first.
+- social discovery.
+- lugares/eventos/personas como cards.
+- CTAs claros.
+- sensación de comunidad activa.
+- estados vacíos amigables.
+- diseño limpio y moderno.
+
+Pero mantener identidad propia:
+- Aldea/ParkChat es space-first, no travel-first.
+- El centro es el lugar físico y su comunidad viva.
+- No copiar marca, colores exactos, assets ni trade dress.
+
+Tarea 0 — Crear rama segura
+
+Ejecutar:
+
+git status --short
+git branch
+git log --oneline -5
+
+Si el working tree está limpio:
+
+git checkout -b stage-2e-ux-pilot-readiness
+
+Si la rama ya existe, usarla.
+
+Si Git está bloqueado:
+- documentar.
+- trabajar en checkpoint Replit.
+- no tocar tags previos.
+
+Tarea 1 — Validaciones base
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run qa:doctor
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+npm run qa:geofence
+npm run supabase:check:notifications
+npm run qa:notifications
+
+Confirmar:
+- todo PASS.
+- no secrets impresos.
+- app no usa mocks.
+- RLS sigue activo.
+
+Si algo falla:
+- detener Stage 2E.
+- aplicar solo fix mínimo.
+- no iniciar polish visual encima de una base rota.
+
+Tarea 2 — Auditoría UX actual
+
+Revisar:
+- app/(auth)/sign-in.tsx
+- app/(auth)/sign-up.tsx, si existe
+- app/(tabs)/map.tsx
+- app/(tabs)/places.tsx
+- app/(tabs)/chats.tsx
+- app/(tabs)/notifications.tsx
+- app/(tabs)/profile.tsx
+- app/place/[id]/index.tsx
+- app/place/[id]/chat.tsx
+- app/place/[id]/groups.tsx
+- app/place/[id]/events.tsx
+- app/group/[id]/*
+- app/event/[id]/*
+- components/PlaceCard.tsx
+- components/GroupCard.tsx
+- components/EventCard.tsx
+- components/ChatMessageBubble.tsx
+- components/SafetyNotice.tsx
+- components/EmptyState.tsx
+- components/LoadingState.tsx
+- components/LocationPermissionCard.tsx
+- components/NearbyPlaceBadge.tsx
+- components/PlacesMapView.tsx
+- components/PlacesMapView.web.tsx
+
+Crear:
+
+docs/STAGE_2E_UX_AUDIT.md
+
+Debe incluir:
+1. Pantallas existentes.
+2. Problemas visuales detectados.
+3. Empty states faltantes.
+4. Loading states faltantes.
+5. Error states faltantes.
+6. Navegación confusa.
+7. Oportunidades de look & feel.
+8. Qué se implementará en Stage 2E.
+9. Qué se deja para Stage 3.
+
+Tarea 3 — Design tokens básicos
+
+Crear o revisar:
+
+theme/
+theme/tokens.ts
+theme/components.ts, si aplica
+
+Si no existe theme, crear algo simple:
+
+- colors
+- spacing
+- radius
+- shadows
+- typography
+- semantic colors:
+  - primary
+  - surface
+  - muted
+  - danger
+  - success
+  - warning
+  - border
+  - text
+  - textMuted
+
+Objetivo:
+- consistencia visual.
+- evitar estilos inline dispersos.
+- no rediseñar todo.
+- aplicar solo donde sea seguro.
+
+Mantener estética:
+- limpia
+- mobile-first
+- social
+- moderna
+- local/community
+- friendly
+
+Tarea 4 — Onboarding inicial
+
+Crear onboarding simple si no existe.
+
+Pantallas sugeridas:
+1. “Descubre comunidades alrededor de lugares reales”
+2. “Únete a chats, grupos y eventos del lugar”
+3. “Tu ubicación exacta no se comparte públicamente”
+
+Implementar:
+- app/(auth)/onboarding.tsx o componente reusable.
+- estado local para marcar onboarding visto si ya existe storage.
+- si no hay storage, mostrar como bloque/hero en sign-in.
+- CTA:
+  - Crear cuenta
+  - Iniciar sesión
+
+No bloquear login.
+No hacer flujo complejo.
+
+Tarea 5 — Auth polish
+
+Mejorar login/register:
+- copy claro.
+- error messages legibles.
+- loading state en botones.
+- helper de Supabase solo si falta configuración.
+- CTA para crear cuenta/iniciar sesión.
+- visual limpio.
+- no mostrar mensajes técnicos al usuario final.
+- no exponer errores crudos de Supabase si son sensibles.
+
+Textos sugeridos:
+- “Entra a la comunidad viva de cada lugar.”
+- “Crea una cuenta para participar en chats, grupos y eventos locales.”
+- “Tu ubicación exacta no se comparte públicamente.”
+
+Tarea 6 — Home/Mapa UX polish
+
+Mejorar app/(tabs)/map.tsx:
+
+Debe sentirse como landing social local:
+- header breve.
+- LocationPermissionCard.
+- PlacesMapView o fallback.
+- sección “Cerca de ti”.
+- sección “Lugares activos”.
+- chips de temas activos si hay graph insights.
+- cards con distancia, grupos, eventos, topics.
+
+No sobrecargar.
+No romper web preview.
+
+Tarea 7 — Places/List polish
+
+Mejorar:
+- PlaceCard
+- lista de lugares
+- empty state
+- loading state
+- error state
+
+PlaceCard debería mostrar:
+- nombre.
+- tipo.
+- ciudad.
+- distancia si existe.
+- topics top si existen.
+- número de grupos/eventos si disponible.
+- nearby badge.
+- CTA visual: “Ver comunidad”.
+
+Tarea 8 — Place detail polish
+
+Mejorar app/place/[id]/index.tsx:
+
+Secciones sugeridas:
+1. Hero del lugar.
+2. Contexto geoespacial.
+3. Temas activos.
+4. Comunidad:
+   - grupos
+   - eventos
+   - chat
+5. SafetyNotice.
+6. CTA principal:
+   - Entrar al chat
+   - Ver grupos
+   - Ver eventos
+
+Debe sentirse como “perfil social del lugar”.
+
+No agregar datos sensibles.
+
+Tarea 9 — Chat UX polish
+
+Mejorar:
+- ChatMessageBubble.
+- MessageInput.
+- estado vacío del chat.
+- rate-limit message.
+- geofence message.
+- loading messages.
+- realtime disconnected/error state si existe.
+
+Empty state sugerido:
+“Sé la primera persona en abrir conversación en este lugar.”
+
+No romper deduplicación ni optimistic echo.
+
+Tarea 10 — Groups UX polish
+
+Mejorar:
+- GroupCard.
+- pantalla de grupos.
+- pending approvals.
+- empty state.
+- access_level visible en lenguaje humano:
+  - Público
+  - Requiere aprobación
+  - Solo invitación
+
+Mejorar copy:
+- “Crea una aldea dentro de este lugar.”
+- “Únete a personas que vuelven a este espacio.”
+
+No cambiar lógica RLS.
+
+Tarea 11 — Events UX polish
+
+Mejorar:
+- EventCard.
+- RSVP status.
+- counts going/maybe/not going.
+- empty state.
+- date/time display.
+- CTA claro.
+
+Textos:
+- “Actividades nacidas desde el lugar.”
+- “Crea un encuentro espontáneo.”
+
+No agregar push notifications.
+
+Tarea 12 — Notifications UX polish
+
+Mejorar tab Avisos:
+- unread badge más claro.
+- categorías visuales.
+- mark all read.
+- empty state:
+  “Aún no hay avisos. Cuando alguien interactúe contigo, aparecerá aquí.”
+- loading/error state.
+
+Tarea 13 — Profile UX polish
+
+Mejorar perfil:
+- datos básicos.
+- mis intereses.
+- mis lugares frecuentes.
+- mis grupos.
+- mis eventos.
+- mis bloqueos.
+- safety mode.
+- logout claro.
+
+No crear settings complejo.
+
+Tarea 14 — Pilot readiness docs
+
+Crear:
+
+docs/PILOT_READINESS.md
+
+Debe incluir:
+1. Objetivo del piloto.
+2. Usuarios objetivo.
+3. Flujo de prueba.
+4. Lugares piloto sugeridos.
+5. Qué métricas observar.
+6. Qué bugs buscar.
+7. Qué feedback pedir.
+8. Qué NO prometer todavía.
+9. Checklist antes de invitar usuarios.
+10. Checklist después de prueba.
+
+Métricas sugeridas:
+- usuarios registrados.
+- mensajes por lugar.
+- grupos creados.
+- eventos creados.
+- RSVP.
+- reportes/bloqueos.
+- temas activos.
+- retorno al mismo lugar.
+
+Tarea 15 — QA visual checklist
+
+Crear:
+
+docs/UX_QA_CHECKLIST.md
+
+Debe cubrir:
+- auth.
+- tabs.
+- mapa.
+- lugares.
+- detalle.
+- chat.
+- grupos.
+- eventos.
+- avisos.
+- perfil.
+- moderación.
+- web preview.
+- mobile/Expo Go.
+- empty states.
+- loading states.
+- error states.
+- accessibility básica.
+
+Tarea 16 — Validaciones finales
+
+Ejecutar:
+
+npm run doctor:node
+npm run supabase:doctor-db
+npm run qa:doctor
+npm run typecheck
+npm run qa:smoke
+npm run supabase:check:graph
+npm run qa:graph
+npm run qa:geo
+npm run qa:geofence
+npm run supabase:check:notifications
+npm run qa:notifications
+
+Si existe lint:
+npm run lint
+
+Si no existe:
+- documentar que lint está pendiente.
+
+Validar preview web:
+npm run start:web
+
+Confirmar:
+- app renderiza.
+- tabs funcionan.
+- no pantalla blanca.
+- no mocks.
+- no secrets impresos.
+
+Tarea 17 — Documentación Stage 2E
+
+Crear:
+
+docs/STAGE_2E_UX_POLISH_REPORT.md
+
+Actualizar:
+- docs/ROADMAP.md
+- docs/REPLIT_CURRENT_STATUS.md
+- docs/TECHNICAL_ARCHITECTURE.md
+- README.md si aplica
+
+Documentar:
+- cambios UX.
+- nuevos componentes.
+- mejoras visuales.
+- known limitations.
+- pilot readiness.
+- next stage.
+
+Tarea 18 — Git/checkpoint
+
+Ejecutar:
+
+git status --short
+
+Si hay cambios:
+
+git add .
+git commit -m "feat: polish UX and prepare pilot readiness"
+
+Si Git funciona:
+
+git push origin stage-2e-ux-pilot-readiness
+
+Si Git está bloqueado:
+- documentar checkpoint Replit.
+- indicar pasos manuales.
+
+No crear release tag.
+
+Criterios de aceptación:
+
+Stage 2E queda completo si:
+
+1. Todas las validaciones base siguen pasando.
+2. Login/register están pulidos.
+3. Onboarding o hero onboarding existe.
+4. Map/Home se siente usable.
+5. PlaceCard, GroupCard, EventCard tienen polish consistente.
+6. Place detail se siente como perfil social del lugar.
+7. Chat tiene empty/loading/error states claros.
+8. Avisos tiene UX clara.
+9. Perfil muestra intereses/lugares/grupos/eventos de forma ordenada.
+10. No se rompe web preview.
+11. No se rompe mobile support.
+12. No se exponen secrets.
+13. docs/PILOT_READINESS.md existe.
+14. docs/UX_QA_CHECKLIST.md existe.
+15. docs/STAGE_2E_UX_POLISH_REPORT.md existe.
+16. El producto queda listo para piloto pequeño.
+
+Entrega final esperada:
+
+## Stage 2E — UX Polish + Pilot Readiness Resultado
+
+### Estado
+- Stage 1 baseline:
+- Stage 2A graph:
+- Stage 2B geo:
+- Stage 2C map/geofence:
+- Stage 2D social polish:
+- Onboarding:
+- Auth polish:
+- Home/map polish:
+- Place detail polish:
+- Chat polish:
+- Groups/events polish:
+- Notifications polish:
+- Profile polish:
+- Pilot readiness:
+
+### Validaciones
+- doctor:node:
+- supabase:doctor-db:
+- qa:doctor:
+- typecheck:
+- qa:smoke:
+- check graph:
+- qa:graph:
+- qa:geo:
+- qa:geofence:
+- check notifications:
+- qa:notifications:
+- preview web:
+
+### UI cambios
+-
+
+### Docs creados
+-
+
+### Bugs encontrados
+-
+
+### Fixes aplicados
+-
+
+### Bloqueadores
+-
+
+### Known limitations
+-
+
+### Próximo stage
+Si todo pasa:
+Stage 2F — pilot analytics, event/group refinement and retention loops.
+
+Si falla UX:
+Stage 2E-UX-Fix.
+
+Si falla preview:
+Stage 2E-Preview-Fix.
